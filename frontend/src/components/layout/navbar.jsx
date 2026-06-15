@@ -1,85 +1,58 @@
-// src/components/layout/Navbar.jsx
+// src/components/layout/navbar.jsx
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-export default function Navbar() {
+function Navbar() {
   const navigate = useNavigate();
 
-  // Temporary Hardcoded States for UI Layout Testing
-  // Change 'isAuthenticated' to false to see the Sign In / Register buttons!
-  // Change 'userRole' to 'admin' to see the Admin Panel link!
-  const isAuthenticated = true; 
-  const userRole = 'user'; // Options: 'user', 'admin'
-
-  const handleLogout = () => {
-    alert("Logging out... (We will connect this to backend auth later)");
-    navigate('/login');
-  };
+  // Temporary mock role for testing routing states
+  const userRole = "user"; 
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+    <nav style={{ backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', padding: '1rem 2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px', margin: '0 auto' }}>
+        
+        {/* Brand App Logo link pointing to Home */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <Link to="/" style={{ fontSize: '1.25rem', fontWeight: 'bold', textDecoration: 'none', color: '#1e293b' }}>
+            🚗 CarGo
+          </Link>
           
-          {/* Left Side: Brand Logo and Core Links */}
-          <div className="flex items-center">
-            <Link to="/" className="text-2xl font-bold text-blue-600 tracking-tight flex items-center gap-2">
-              <span>🚗</span> <span className="hover:text-blue-700 transition">CarGo</span>
+          {/* Main User Navigation Links */}
+          <div style={{ display: 'flex', gap: '1.5rem' }}>
+            <Link to="/" style={{ textDecoration: 'none', color: '#475569', fontSize: '0.9rem', fontWeight: '500' }}>
+              Home
+            </Link>
+            <Link to="/cars" style={{ textDecoration: 'none', color: '#475569', fontSize: '0.9rem', fontWeight: '500' }}>
+              Browse Cars
+            </Link>
+            <Link to="/bookings" style={{ textDecoration: 'none', color: '#475569', fontSize: '0.9rem', fontWeight: '500' }}>
+              My Rentals
             </Link>
             
-            {/* Dynamic Link Menu */}
-            <div className="hidden md:flex ml-10 space-x-8">
-              <Link to="/" className="text-gray-600 hover:text-blue-600 font-medium text-sm transition">
-                Home
-              </Link>
-              <Link to="/cars" className="text-gray-600 hover:text-blue-600 font-medium text-sm transition">
-                Browse Cars
-              </Link>
-              
-              {/* Show "My Rentals" only to logged-in standard customers */}
-              {isAuthenticated && userRole === 'user' && (
-                <Link to="/my-bookings" className="text-gray-600 hover:text-blue-600 font-medium text-sm transition">
-                  My Rentals
-                </Link>
-              )}
-
-              {/* Show "Admin Panel" shortcut if the user is an administrator */}
-              {isAuthenticated && userRole === 'admin' && (
-                <Link to="/admin/dashboard" className="text-emerald-600 hover:text-emerald-700 font-semibold text-sm transition">
-                  🛠️ Admin Dashboard
-                </Link>
-              )}
-            </div>
+            {/* Quick link to test the admin side if needed */}
+            <Link to="/admin/dashboard" style={{ textDecoration: 'none', color: '#dc2626', fontSize: '0.9rem', fontWeight: '600' }}>
+              Admin Panel
+            </Link>
           </div>
-
-          {/* Right Side: Authentication Controls */}
-          <div className="flex items-center space-x-4">
-            {isAuthenticated ? (
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full font-medium">
-                  Role: <span className="capitalize font-bold text-gray-700">{userRole}</span>
-                </span>
-                <button 
-                  onClick={handleLogout}
-                  className="text-sm bg-rose-50 hover:bg-rose-100 text-rose-600 px-4 py-2 rounded-lg font-medium transition"
-                >
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-3">
-                <Link to="/login" className="text-gray-600 hover:text-blue-600 font-medium text-sm transition">
-                  Sign In
-                </Link>
-                <Link to="/register" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition">
-                  Register
-                </Link>
-              </div>
-            )}
-          </div>
-
         </div>
+
+        {/* User Context Actions Frame */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.9rem' }}>
+          <span style={{ color: '#64748b', backgroundColor: '#f1f5f9', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+            Role: <strong>{userRole}</strong>
+          </span>
+          <button 
+            onClick={() => navigate('/login')} 
+            style={{ backgroundColor: '#f1f5f9', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '500', color: '#334155' }}
+          >
+            Logout
+          </button>
+        </div>
+
       </div>
     </nav>
   );
 }
+
+export default Navbar;

@@ -1,48 +1,95 @@
 // src/pages/auth/login.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-function Login() {
+// We explicitly pull setAuth from the component props here
+function Login({ setAuth }) {
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Temporary redirect to home page on submit for testing
-    navigate('/');
+    console.log("Submit triggered for email:", email); // Helpful debug log
+
+    // Absolute fallback check to ensure setAuth exists before calling it
+    if (!setAuth) {
+      console.error("Critical Error: setAuth function was not passed down correctly from App.jsx!");
+      alert("Application state error. Check your App.jsx configuration.");
+      return;
+    }
+
+    // Role verification engine
+    if (email.toLowerCase().includes('admin')) {
+      console.log("Admin signature detected. Routing to admin dashboard...");
+      setAuth({
+        isLoggedIn: true,
+        email: email,
+        role: 'admin'
+      });
+      navigate('/admin/dashboard');
+    } else {
+      console.log("Standard user signature detected. Routing to customer portal...");
+      setAuth({
+        isLoggedIn: true,
+        email: email,
+        role: 'user'
+      });
+      navigate('/');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto w-full max-w-md">
-        <h2 className="text-center text-3xl font-extrabold text-gray-900">Sign in to your account</h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Or{' '}
-          <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
-            create a new account
-          </Link>
-        </p>
-      </div>
-
-      <div className="mt-8 sm:mx-auto w-full max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-100">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email address</label>
-              <input type="email" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Password</label>
-              <input type="password" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
-            </div>
-
-            <div>
-              <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
-                Sign In
-              </button>
-            </div>
-          </form>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', backgroundColor: '#f8fafc', fontFamily: 'sans-serif' }}>
+      <div style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: '2rem' }}>
+        
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a' }}>Sign in to CarGo</h2>
+          <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+            Use <strong style={{ color: '#ef4444' }}>admin@cargo.com</strong> to unlock the admin dashboard tracks.
+          </p>
         </div>
+
+        <div style={{ backgroundColor: '#fff', padding: '2rem', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '0.35rem' }}>Email Address</label>
+              <input 
+                type="email" 
+                required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', boxSizing: 'border-box' }} 
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '0.35rem' }}>Password</label>
+              <input 
+                type="password" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', boxSizing: 'border-box' }} 
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              style={{ width: '100%', backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '6px', fontSize: '0.9rem', fontWeight: '600', cursor: 'pointer', marginTop: '0.5rem' }}
+            >
+              Sign In
+            </button>
+          </form>
+          
+          <p style={{ textAlign: 'center', fontSize: '0.8rem', color: '#64748b', marginTop: '1.5rem', marginBottom: '0' }}>
+            Don't have an account? <Link to="/register" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>Register here</Link>
+          </p>
+        </div>
+
       </div>
     </div>
   );

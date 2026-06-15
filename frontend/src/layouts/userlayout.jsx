@@ -1,26 +1,124 @@
 // src/layouts/userlayout.jsx
 import React from 'react';
-import { Outlet } from 'react-router-dom';
-import Navbar from '../components/layout/navbar';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
 
-function UserLayout() {
+function UserLayout({ auth, onLogout }) {
+  const navigate = useNavigate();
+
+  // Quick debug safety: logs state to console so you can audit live changes
+  console.log("Current UserLayout Auth State:", auth);
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Global Navigation Header at the top */}
-      <Navbar />
+    <div style={{ fontFamily: 'sans-serif', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       
-      {/* The individual page content renders right inside this main tag */}
-      <main className="flex-grow">
+      {/* Global Customer Navigation Hub */}
+      <header style={{ 
+        backgroundColor: '#fff', 
+        borderBottom: '1px solid #e2e8f0', 
+        padding: '1rem 2rem', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50
+      }}>
+        
+        {/* Left Side: Logo Branding Anchor */}
+        <Link to="/" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          🚗 CarGo
+        </Link>
+
+        {/* Center: Global Navigation Links */}
+        <nav style={{ display: 'flex', gap: '2rem' }}>
+          <Link to="/" style={{ color: '#475569', textDecoration: 'none', fontSize: '0.95rem', fontWeight: '500' }}>Home</Link>
+          <Link to="/cars" style={{ color: '#475569', textDecoration: 'none', fontSize: '0.95rem', fontWeight: '500' }}>Browse Cars</Link>
+          <Link to="/bookings" style={{ color: '#475569', textDecoration: 'none', fontSize: '0.95rem', fontWeight: '500' }}>My Bookings</Link>
+        </nav>
+
+        {/* Right Side: Strict Authorization State Component Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {auth && auth.isLoggedIn === true ? (
+            
+            // SECURITY TRACK A: User session is active -> Show operational identity & logout trigger
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <span style={{ 
+                fontSize: '0.85rem', 
+                color: '#334155', 
+                fontWeight: '600', 
+                backgroundColor: '#f1f5f9', 
+                padding: '0.5rem 0.9rem', 
+                borderRadius: '20px',
+                border: '1px solid #e2e8f0'
+              }}>
+                👤 {auth.email || 'Active User'}
+              </span>
+              <button 
+                onClick={onLogout}
+                style={{ 
+                  backgroundColor: '#ef4444', 
+                  color: '#fff', 
+                  border: 'none', 
+                  padding: '0.5rem 1.1rem', 
+                  borderRadius: '6px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: '600', 
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+              >
+                Logout
+              </button>
+            </div>
+
+          ) : (
+            
+            // SECURITY TRACK B: Guest session -> Show entrance access gates
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button 
+                onClick={() => navigate('/login')}
+                style={{ 
+                  backgroundColor: 'transparent', 
+                  color: '#475569', 
+                  border: '1px solid #cbd5e1', 
+                  padding: '0.5rem 1rem', 
+                  borderRadius: '6px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: '600', 
+                  cursor: 'pointer' 
+                }}
+              >
+                Sign In
+              </button>
+              <button 
+                onClick={() => navigate('/register')}
+                style={{ 
+                  backgroundColor: '#2563eb', 
+                  color: '#fff', 
+                  border: 'none', 
+                  padding: '0.5rem 1rem', 
+                  borderRadius: '6px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: '600', 
+                  cursor: 'pointer' 
+                }}
+              >
+                Create Account
+              </button>
+            </div>
+
+          )}
+        </div>
+
+      </header>
+
+      {/* Main Framework Target Canvas */}
+      <main>
         <Outlet />
       </main>
-      
-      {/* Global Footer */}
-      <footer className="bg-white border-t border-gray-200 py-4 text-center text-sm text-gray-500">
-        &copy; {new Date().getFullYear()} CarGo Rental Platform. All rights reserved.
-      </footer>
+
     </div>
   );
 }
 
-// Explicit default export at the bottom so Vite cannot miss it
 export default UserLayout;
