@@ -1,110 +1,149 @@
 // src/pages/user/carbrowsing.jsx
 import React, { useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
-// Extended mock fleet dataset for realistic testing
-const FLEET_DATA = [
-  { id: 1, name: 'Tesla Model S', price: 90, type: 'Luxury', transmission: 'Automatic', fuel: 'Electric' },
-  { id: 2, name: 'Ford Explorer', price: 75, type: 'SUV', transmission: 'Automatic', fuel: 'Petrol' },
-  { id: 3, name: 'Honda Civic', price: 40, type: 'Economy', transmission: 'Manual', fuel: 'Petrol' },
-  { id: 4, name: 'BMW M4 Coupé', price: 120, type: 'Luxury', transmission: 'Automatic', fuel: 'Petrol' },
-  { id: 5, name: 'Jeep Wrangler', price: 85, type: 'SUV', transmission: 'Manual', fuel: 'Diesel' },
-  { id: 6, name: 'Toyota Prius', price: 45, type: 'Economy', transmission: 'Automatic', fuel: 'Hybrid' },
-];
+// THE HAVERSINE FORMULA: Calculates real-world distance between two GPS coordinate sets in KM
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c; // Distance in km
+  return parseFloat(distance.toFixed(1)); // Return rounded to 1 decimal place
+}
 
 function CarBrowsing() {
-  // State managers for search tracking and category filtering
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
+  // Grab the precise math coordinates passed from the homepage URL
+  const userLat = parseFloat(searchParams.get('lat'));
+  const userLng = parseFloat(searchParams.get('lng'));
+  const searchLabel = searchParams.get('label') || 'Your Location';
 
-  // Categories extraction array
-  const categories = ['All', 'Luxury', 'SUV', 'Economy'];
+  // Real-world styled dataset: Cars now have real GPS coordinates assigned to Mumbai hubs!
+  const [cars] = useState([
+    { id: 1, name: 'Mahindra Thar', type: 'SUV', price: 4500, fuel: 'Diesel', seats: 4, hubName: 'Chhatrapati Shivaji Airport (BOM)', lat: 19.0896, lng: 72.8656, address: 'Terminal 2 Premium Parking, Andheri East' },
+    { id: 2, name: 'Honda Civic', type: 'Sedan', price: 1600, fuel: 'Petrol', seats: 5, hubName: 'Phoenix Marketcity Mall', lat: 19.0865, lng: 72.8890, address: 'Basement Level 2, LBS Marg, Kurla' },
+    { id: 3, name: 'Toyota Fortuner', type: 'SUV', price: 6500, fuel: 'Diesel', seats: 7, hubName: 'Chhatrapati Shivaji Airport (BOM)', lat: 19.0896, lng: 72.8656, address: 'Terminal 2 Arrival Lane' },
+    { id: 4, name: 'Hyundai Verna', type: 'Sedan', price: 1400, fuel: 'Petrol', seats: 5, hubName: 'Mumbai Central Railway Station', lat: 18.9696, lng: 72.8193, address: 'Main Gate Exit Yard, Area 1' },
+    { id: 5, name: 'Tata Nexon', type: 'SUV', price: 2200, fuel: 'Electric', seats: 5, hubName: 'Phoenix Marketcity Mall', lat: 19.0865, lng: 72.8890, address: 'EV Charging Station, Mall Wing B' },
+    { id: 6, name: 'Maruti Swift', type: 'Hatchback', price: 1100, fuel: 'Petrol', seats: 5, hubName: 'Mumbai Central Railway Station', lat: 18.9696, lng: 72.8193, address: 'Platform 1 Lane, West Side' },
+  ]);
 
-  // Filtering Logic Engine
-  const filteredCars = FLEET_DATA.filter((car) => {
-    const matchesSearch = car.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || car.type === selectedCategory;
-    return matchesSearch && matchesCategory;
+  // 1. DYNAMIC RADIAL SCANNING
+  // Map through your inventory and dynamically attach the exact distance to the user
+  const carsWithDistance = cars.map(car => {
+    // If homepage didn't provide coordinates, default distance to 0
+    const distance = (userLat && userLng) ? calculateDistance(userLat, userLng, car.lat, car.lng) : 0;
+    return { ...car, distanceAway: distance };
   });
 
+  // 2. PRODUCTION RADIUS GATE (e.g., Only show cars within 40 kilometers of the searched spot)
+  const nearbyCars = carsWithDistance.filter(car => car.distanceAway <= 40);
+
+  // 3. SORT: Show the absolute closest vehicles first
+  const sortedCars = nearbyCars.sort((a, b) => a.distanceAway - b.distanceAway);
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Explore Our Available Fleet</h1>
-        <p className="text-gray-600 mt-2">Find and filter the perfect vehicle for your destination workspace.</p>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', padding: '3rem 2rem' }}>
+      
+      {/* Search Header Banner */}
+      <div style={{ maxWidth: '1200px', margin: '0 auto 3rem auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            🟢 Live GPS Proximity Engine Connected
+          </span>
+          <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#0f172a', margin: '0.25rem 0 0.5rem 0' }}>
+            Available Fleet Near: <span style={{ color: '#2563eb', fontWeight: '700' }}>{searchLabel}</span>
+          </h1>
+          <p style={{ color: '#64748b', margin: 0 }}>
+            Scanning a 40km delivery radius... Found {sortedCars.length} matches sorted by proximity.
+          </p>
+        </div>
+        
+        <button 
+          onClick={() => navigate('/')}
+          style={{
+            backgroundColor: '#fff', border: '1px solid #cbd5e1', padding: '0.6rem 1.2rem',
+            borderRadius: '6px', fontWeight: '600', color: '#475569', cursor: 'pointer'
+          }}
+        >
+          📍 Change Search Origin
+        </button>
       </div>
 
-      {/* Control Panel: Search Bar and Category Tabs */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        {/* Search Input Box */}
-        <div className="flex-1 max-w-md">
-          <input
-            type="text"
-            placeholder="Search by car model (e.g., Tesla)..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-          />
-        </div>
-
-        {/* Filter Buttons Layout */}
-        <div className="flex flex-wrap gap-2">
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-                selectedCategory === category
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Dynamic Results Grid */}
-      {filteredCars.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCars.map((car) => (
-            <div key={car.id} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition flex flex-col justify-between">
-              <div>
-                {/* Car Badge Category Tag */}
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                  car.type === 'Luxury' ? 'text-purple-600 bg-purple-50' :
-                  car.type === 'SUV' ? 'text-amber-600 bg-amber-50' : 'text-blue-600 bg-blue-50'
-                }`}>
-                  {car.type}
-                </span>
-
-                {/* Name & Pricing */}
-                <h3 className="text-xl font-bold text-gray-800 mt-3">{car.name}</h3>
-                <div className="mt-2 flex items-baseline text-gray-900">
-                  <span className="text-2xl font-extrabold">₹{car.price}</span>
-                  <span className="text-gray-500 text-sm ml-1">/ day</span>
-                </div>
-
-                {/* Core Machine Specs Grid */}
-                <div className="grid grid-cols-2 gap-2 my-4 pt-4 border-t border-gray-100 text-xs text-gray-500">
-                  <div>⚙️ {car.transmission}</div>
-                  <div>⛽ {car.fuel}</div>
-                </div>
-              </div>
-
-              {/* Action Button */}
-              <button className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition text-sm shadow-sm">
-                Rent Vehicle
-              </button>
-            </div>
-          ))}
+      {/* VEHICLE CATALOG GRID */}
+      {sortedCars.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '5rem 0', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🗺️</div>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', marginBottom: '0.5rem' }}>No Fleet in Your Area</h3>
+          <p style={{ color: '#64748b', margin: '0 0 1.5rem 0' }}>We currently only have test garages deployed around the Mumbai Metro area.</p>
+          <button onClick={() => navigate('/')} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '0.5rem 1.5rem', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}>Try Searching "Andheri", "BOM Airport", or "Kurla"</button>
         </div>
       ) : (
-        /* Empty State Warning Frame */
-        <div className="text-center bg-gray-50 border border-dashed border-gray-300 rounded-xl p-12 text-gray-500">
-          <p className="text-lg font-medium">No vehicles found matching your criteria.</p>
-          <p className="text-sm text-gray-400 mt-1">Try resetting your filters or adjusting your search phrase.</p>
+        <div style={{ 
+          maxWidth: '1200px', margin: '0 auto', display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '2rem' 
+        }}>
+          {sortedCars.map((car) => (
+            <div key={car.id} style={{ 
+              backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', 
+              overflow: 'hidden', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)'
+            }}>
+              
+              <div style={{ height: '160px', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '4.5rem' }}>
+                {car.type === 'SUV' ? '🚙' : '🚗'}
+              </div>
+              
+              <div style={{ padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.3rem', fontWeight: '700', color: '#0f172a', margin: '0 0 0.25rem 0' }}>{car.name}</h3>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '700', backgroundColor: '#eff6ff', color: '#2563eb', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                      {car.type}
+                    </span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0f172a' }}>₹{car.price}</div>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>/ day</span>
+                  </div>
+                </div>
+
+                {/* DYNAMIC DISTANCE BADGE */}
+                <div style={{ 
+                  backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '10px', 
+                  border: '1px solid #e2e8f0', marginBottom: '1.25rem' 
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#0f172a' }}>📍 {car.hubName}</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '800', color: car.distanceAway < 5 ? '#16a34a' : '#b45309' }}>
+                      🏁 {car.distanceAway} km away
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0, lineHeight: '1.4' }}>
+                    {car.address}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9', fontSize: '0.85rem', color: '#475569' }}>
+                  <span>💺 {car.seats} Seats</span>
+                  <span>⛽ {car.fuel}</span>
+                </div>
+
+                <button style={{ 
+                  width: '100%', marginTop: '1.25rem', padding: '0.85rem', borderRadius: '8px', 
+                  backgroundColor: '#0f172a', color: '#fff', border: 'none', fontWeight: '700', cursor: 'pointer'
+                }}>
+                  Book This Vehicle
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
