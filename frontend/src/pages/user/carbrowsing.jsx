@@ -1,9 +1,11 @@
-// src/pages/user/carbrowsing.jsx
-import React, { useState } from 'react';
+// frontend/src/pages/user/carbrowsing.jsx
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { getAllCars } from '../../services/carservice.js';
 
 // THE HAVERSINE FORMULA: Calculates real-world distance between two GPS coordinate sets in KM
 function calculateDistance(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
   const R = 6371; // Radius of the earth in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -25,32 +27,65 @@ function CarBrowsing() {
   const userLng = parseFloat(searchParams.get('lng'));
   const searchLabel = searchParams.get('label') || 'Your Location';
 
-  // Real-world styled dataset: Cars now have real GPS coordinates assigned to Mumbai hubs!
-  const [cars] = useState([
-    { id: 1, name: 'Mahindra Thar', type: 'SUV', price: 4500, fuel: 'Diesel', seats: 4, hubName: 'Chhatrapati Shivaji Airport (BOM)', lat: 19.0896, lng: 72.8656, address: 'Terminal 2 Premium Parking, Andheri East' },
-    { id: 2, name: 'Honda Civic', type: 'Sedan', price: 1600, fuel: 'Petrol', seats: 5, hubName: 'Phoenix Marketcity Mall', lat: 19.0865, lng: 72.8890, address: 'Basement Level 2, LBS Marg, Kurla' },
-    { id: 3, name: 'Toyota Fortuner', type: 'SUV', price: 6500, fuel: 'Diesel', seats: 7, hubName: 'Chhatrapati Shivaji Airport (BOM)', lat: 19.0896, lng: 72.8656, address: 'Terminal 2 Arrival Lane' },
-    { id: 4, name: 'Hyundai Verna', type: 'Sedan', price: 1400, fuel: 'Petrol', seats: 5, hubName: 'Mumbai Central Railway Station', lat: 18.9696, lng: 72.8193, address: 'Main Gate Exit Yard, Area 1' },
-    { id: 5, name: 'Tata Nexon', type: 'SUV', price: 2200, fuel: 'Electric', seats: 5, hubName: 'Phoenix Marketcity Mall', lat: 19.0865, lng: 72.8890, address: 'EV Charging Station, Mall Wing B' },
-    { id: 6, name: 'Maruti Swift', type: 'Hatchback', price: 1100, fuel: 'Petrol', seats: 5, hubName: 'Mumbai Central Railway Station', lat: 18.9696, lng: 72.8193, address: 'Platform 1 Lane, West Side' },
-  ]);
+  const [cars, setCars] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // 1. DYNAMIC RADIAL SCANNING
-  // Map through your inventory and dynamically attach the exact distance to the user
+  // FETCHING LIVE VEHICLES FROM MONGODB
+  useEffect(() => {
+    const fetchLiveInventory = async () => {
+      try {
+        setLoading(true);
+        const data = await getAllCars();
+        setCars(data);
+      } catch (err) {
+        console.error("Failed to load cars:", err);
+        setError("Could not establish server uplink. Ensure backend is running.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLiveInventory();
+  }, []);
+
+  // 1. DYNAMIC RADIAL SCANNING (Using clean schema property accessors)
   const carsWithDistance = cars.map(car => {
-    // If homepage didn't provide coordinates, default distance to 0
-    const distance = (userLat && userLng) ? calculateDistance(userLat, userLng, car.lat, car.lng) : 0;
+    const carLat = car.coordinates?.lat;
+    const carLng = car.coordinates?.lng;
+    
+    const distance = (userLat && userLng && carLat && carLng) 
+      ? calculateDistance(userLat, userLng, carLat, carLng) 
+      : 0;
+      
     return { ...car, distanceAway: distance };
   });
 
-  // 2. PRODUCTION RADIUS GATE (e.g., Only show cars within 40 kilometers of the searched spot)
+  // 2. PRODUCTION RADIUS GATE (Only show cars within 40 kilometers of the searched spot)
   const nearbyCars = carsWithDistance.filter(car => car.distanceAway <= 40);
 
   // 3. SORT: Show the absolute closest vehicles first
   const sortedCars = nearbyCars.sort((a, b) => a.distanceAway - b.distanceAway);
 
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif', color: '#64748b' }}>
+        <h3>Scanning Global Hubs... 📡</h3>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif' }}>
+        <p style={{ color: '#ef4444', fontWeight: 'bold' }}>⚠️ {error}</p>
+        <button onClick={() => window.location.reload()} style={{ marginTop: '1rem', padding: '0.5rem 1rem', cursor: 'pointer' }}>Retry Handshake</button>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', padding: '3rem 2rem' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', padding: '3rem 2rem', fontFamily: 'sans-serif' }}>
       
       {/* Search Header Banner */}
       <div style={{ maxWidth: '1200px', margin: '0 auto 3rem auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -91,13 +126,14 @@ function CarBrowsing() {
           gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '2rem' 
         }}>
           {sortedCars.map((car) => (
-            <div key={car.id} style={{ 
+            <div key={car._id} style={{ 
               backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', 
               overflow: 'hidden', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)'
             }}>
               
+              {/* Uses car.image string (emoji placeholder) */}
               <div style={{ height: '160px', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '4.5rem' }}>
-                {car.type === 'SUV' ? '🚙' : '🚗'}
+                {car.image || (car.type === 'SUV' ? '🚙' : '🚗')}
               </div>
               
               <div style={{ padding: '1.5rem' }}>
@@ -109,7 +145,8 @@ function CarBrowsing() {
                     </span>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0f172a' }}>₹{car.price}</div>
+                    {/* Updated to use pricePerDay */}
+                    <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0f172a' }}>₹{car.pricePerDay}</div>
                     <span style={{ fontSize: '0.75rem', color: '#64748b' }}>/ day</span>
                   </div>
                 </div>
@@ -132,13 +169,17 @@ function CarBrowsing() {
 
                 <div style={{ display: 'flex', gap: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9', fontSize: '0.85rem', color: '#475569' }}>
                   <span>💺 {car.seats} Seats</span>
-                  <span>⛽ {car.fuel}</span>
+                  {/* Updated to use fuelType */}
+                  <span>⛽ {car.fuelType}</span>
                 </div>
 
-                <button style={{ 
-                  width: '100%', marginTop: '1.25rem', padding: '0.85rem', borderRadius: '8px', 
-                  backgroundColor: '#0f172a', color: '#fff', border: 'none', fontWeight: '700', cursor: 'pointer'
-                }}>
+                <button 
+                  onClick={() => navigate(`/car/${car._id}`)} // 👈 This will pass the MongoDB ID to your route
+                  style={{ 
+                    width: '100%', marginTop: '1.25rem', padding: '0.85rem', borderRadius: '8px', 
+                    backgroundColor: '#0f172a', color: '#fff', border: 'none', fontWeight: '700', cursor: 'pointer'
+                  }}
+                >
                   Book This Vehicle
                 </button>
               </div>

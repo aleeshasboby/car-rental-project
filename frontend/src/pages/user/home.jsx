@@ -18,8 +18,8 @@ function Home() {
 
     const delayDebounceFn = setTimeout(() => {
       setLoading(true);
-      // Query OpenStreetMap's free global geocoding service
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=in`)
+      // Query OpenStreetMap's free global geocoding service with clean addressing structural fallbacks
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=10&countrycodes=in`)
         .then((res) => res.json())
         .then((data) => {
           setSuggestions(data);
