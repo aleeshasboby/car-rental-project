@@ -13,7 +13,7 @@ import CarDetails from './pages/user/cardetails.jsx';
 import MyBookings from './pages/user/mybookings.jsx';
 
 // Administrative Command Center Pages
-import Dashboard from './pages/admin/dashboard.jsx';
+import AddCar from './pages/admin/addcar.jsx'; // 🟢 Import your brand new Add Car component form!
 import ManageCars from './pages/admin/managecars.jsx';
 import ManageRentals from './pages/admin/managerentals.jsx';
 import ManageUsers from './pages/admin/manageusers.jsx';
@@ -25,21 +25,38 @@ import Register from './pages/auth/register.jsx';
 function App() {
   // Global Session State tracking
   const [auth, setAuth] = useState(() => {
-    const savedAuth = localStorage.getItem('user_session');
-    return savedAuth ? JSON.parse(savedAuth) : {
-      isLoggedIn: true, // Keep true for development testing so we bypass gated blocks
-      email: 'testuser@gmail.com',
+    // 🟢 Read from sessionStorage to maintain correct dynamic session lifecycles
+    const savedUser = sessionStorage.getItem('user');
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      return {
+        isLoggedIn: true,
+        email: parsed.email,
+        role: parsed.role
+      };
+    }
+    
+    // 🟢 DEFAULT GUEST STATE: Start completely logged out so users browse freely first!
+    return {
+      isLoggedIn: false, 
+      email: '',
       role: 'user'
     };
   });
 
+  // Keep state synchronized with storage handles if it changes programmatically
   useEffect(() => {
-    localStorage.setItem('user_session', JSON.stringify(auth));
+    if (auth.isLoggedIn) {
+      const basicUserData = { email: auth.email, role: auth.role };
+      sessionStorage.setItem('user', JSON.stringify(basicUserData));
+    }
   }, [auth]);
 
   const handleLogout = () => {
+    // 🟢 Reset authentication flags on logout and completely wipe active tokens
     setAuth({ isLoggedIn: false, email: '', role: 'user' });
-    localStorage.removeItem('user_session');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
   };
 
   return (
@@ -48,7 +65,7 @@ function App() {
       <Route path="/login" element={<Login setAuth={setAuth} auth={auth} />} />
       <Route path="/register" element={<Register />} />
 
-      {/* UNIFIED USER TRACK: This puts your layout wrappers back! 🟢 */}
+      {/* UNIFIED USER TRACK */}
       <Route path="/" element={<UserLayout auth={auth} onLogout={handleLogout} />}>
         <Route index element={<Home auth={auth} />} />
         <Route path="cars" element={<CarBrowsing />} />
@@ -59,7 +76,7 @@ function App() {
       {/* ADMINISTRATOR TRACK */}
       <Route 
         path="/admin" 
-        element={
+        element = {
           auth.isLoggedIn && auth.role === 'admin' ? (
             <AdminLayout auth={auth} onLogout={handleLogout} />
           ) : (
@@ -67,7 +84,8 @@ function App() {
           )
         }
       >
-        <Route path="dashboard" element={<Dashboard />} />
+        {/* 🟢 Mounted your AddCar workspace component directly as the primary landing dashboard */}
+        <Route path="dashboard" element={<AddCar />} />
         <Route path="cars" element={<ManageCars />} />
         <Route path="rentals" element={<ManageRentals />} />
         <Route path="users" element={<ManageUsers />} />

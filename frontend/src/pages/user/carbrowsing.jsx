@@ -173,8 +173,18 @@ function CarBrowsing() {
                   <span>⛽ {car.fuelType}</span>
                 </div>
 
+                {/* UPDATED BOOKING BUTTON WITH LOGIN GATE SECURITY ROUTING 🔒 */}
                 <button 
-                  onClick={() => navigate(`/car/${car._id}`)} // 👈 This will pass the MongoDB ID to your route
+                  onClick={() => {
+                    const activeToken = sessionStorage.getItem('token');
+                    
+                    if (!activeToken) {
+                      alert("Please sign in or create an account to reserve this vehicle! 🔒");
+                      navigate('/login',{ state: { redirectTo: `/car/${car._id}` } });
+                    } else {
+                      navigate(`/car/${car._id}`);
+                    }
+                  }}
                   style={{ 
                     width: '100%', marginTop: '1.25rem', padding: '0.85rem', borderRadius: '8px', 
                     backgroundColor: '#0f172a', color: '#fff', border: 'none', fontWeight: '700', cursor: 'pointer'
@@ -182,6 +192,7 @@ function CarBrowsing() {
                 >
                   Book This Vehicle
                 </button>
+
               </div>
             </div>
           ))}

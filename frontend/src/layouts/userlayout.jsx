@@ -1,12 +1,47 @@
 // src/layouts/userlayout.jsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { logoutUser } from '../services/authservice.js';
 
 function UserLayout({ auth, onLogout }) {
   const navigate = useNavigate();
+  
+  // DYNAMIC STATE FALLBACK 🔄
+  // If parent prop 'auth' isn't set, read directly from localStorage tokens
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    if (auth && auth.isLoggedIn) {
+      setCurrentUser(auth);
+    } else {
+      // 🟢 Read from sessionStorage instead
+      const storedUser = sessionStorage.getItem('user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        setCurrentUser({
+          isLoggedIn: true,
+          email: parsed.email,
+          role: parsed.role
+        });
+      } else {
+        setCurrentUser(null);
+      }
+    }
+  }, [auth]); // Recalculate whenever the top-level auth prop updates
+
+  // Dynamic logout handler that respects both configurations
+  const handleLogoutClick = () => {
+    if (onLogout) {
+      onLogout(); // Triggers your top level App.jsx logout state cleaner
+    } else {
+      logoutUser(); // Fallback directly to clearing localStorage
+      setCurrentUser(null);
+    }
+    navigate('/login');
+  };
 
   // Quick debug safety: logs state to console so you can audit live changes
-  console.log("Current UserLayout Auth State:", auth);
+  console.log("Current UserLayout Dynamic Auth State:", currentUser);
 
   return (
     <div style={{ fontFamily: 'sans-serif', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
@@ -38,7 +73,7 @@ function UserLayout({ auth, onLogout }) {
 
         {/* Right Side: Strict Authorization State Component Toggle */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          {auth && auth.isLoggedIn === true ? (
+          {currentUser && currentUser.isLoggedIn === true ? (
             
             // SECURITY TRACK A: User session is active -> Show operational identity & logout trigger
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -51,10 +86,10 @@ function UserLayout({ auth, onLogout }) {
                 borderRadius: '20px',
                 border: '1px solid #e2e8f0'
               }}>
-                👤 {auth.email || 'Active User'}
+                👤 {currentUser.email || 'Active User'}
               </span>
               <button 
-                onClick={onLogout}
+                onClick={handleLogoutClick}
                 style={{ 
                   backgroundColor: '#ef4444', 
                   color: '#fff', 

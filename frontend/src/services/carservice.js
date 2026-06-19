@@ -15,6 +15,7 @@ export const getCarById = async (id) => {
 
 // Add a new car listing
 export const addNewCar = async (carData) => {
-  const response = await api.post('cars/add', carData);
+  // 🟢 Changed from 'cars/add' to 'cars' to match your backend POST route exactly!
+  const response = await api.post('cars', carData);
   return response.data;
 };
