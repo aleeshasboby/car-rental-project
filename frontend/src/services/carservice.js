@@ -1,21 +1,44 @@
 // frontend/src/services/carservice.js
 import api from './api.js';
 
-// Get all cars from database
 export const getAllCars = async () => {
-  const response = await api.get('cars'); // Trims the leading slash to append safely
+  const response = await api.get('cars');
   return response.data;
 };
 
-// Get a single car record by its database ID
-export const getCarById = async (id) => {
-  const response = await api.get(`cars/${id.trim()}`); // Appends directly to /api/
+export const addCar = async (carData) => {
+  const response = await api.post('cars/management/add', carData);
   return response.data;
 };
 
-// Add a new car listing
-export const addNewCar = async (carData) => {
-  // 🟢 Changed from 'cars/add' to 'cars' to match your backend POST route exactly!
-  const response = await api.post('cars', carData);
+export const updateCar = async (carId, carData) => {
+  const response = await api.put(`cars/management/edit/${carId}`, carData);
+  return response.data;
+};
+
+export const deleteCar = async (carId) => {
+  const response = await api.delete(`cars/management/remove/${carId}`);
+  return response.data;
+};
+
+/**
+ * Public/User Action: Fetch profile records for a single specific vehicle by its MongoDB ID
+ */
+export const getCarById = async (carId) => {
+  const response = await api.get(`cars/${carId}`);
+  return response.data;
+};
+
+// frontend/src/services/carservice.js
+
+// Fetch all fixed station hubs for dropdown lists
+export const getAllHubs = async () => {
+  const response = await api.get('hubs');
+  return response.data;
+};
+
+// Admin operation to register a new hub terminal location
+export const addHub = async (hubData) => {
+  const response = await api.post('hubs/add', hubData);
   return response.data;
 };

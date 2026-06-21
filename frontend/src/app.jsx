@@ -14,7 +14,7 @@ import MyBookings from './pages/user/mybookings.jsx';
 
 // Administrative Command Center Pages
 import AddCar from './pages/admin/addcar.jsx'; // 🟢 Import your brand new Add Car component form!
-import ManageCars from './pages/admin/managecars.jsx';
+import ManageCars from './pages/admin/fleetinventory.jsx';
 import ManageRentals from './pages/admin/managerentals.jsx';
 import ManageUsers from './pages/admin/manageusers.jsx';
 

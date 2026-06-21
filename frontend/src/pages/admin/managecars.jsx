@@ -91,7 +91,7 @@ function ManageCars() {
         {/* Right Column: Active Inventory List Table */}
         <div style={{ backgroundColor: '#fff', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
           <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '1rem', color: '#334155' }}>
-            Live Inventory List ({cars.length} Cars)
+            Live Inventory List 
           </h3>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
             <thead>
@@ -106,7 +106,7 @@ function ManageCars() {
                 <tr key={car.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                   <td style={{ padding: '0.75rem 0', fontWeight: '500', color: '#1e293b' }}>{car.name}</td>
                   <td style={{ padding: '0.75rem 0', color: '#64748b' }}>{car.type}</td>
-                  <td style={{ padding: '0.75rem 0', fontWeight: '600', color: '#059669' }}>${car.price}/day</td>
+                  <td style={{ padding: '0.75rem 0', fontWeight: '600', color: '#059669' }}>₹{car.price}/day</td>
                 </tr>
               ))}
             </tbody>
