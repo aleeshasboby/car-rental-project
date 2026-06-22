@@ -13,7 +13,7 @@ import CarDetails from './pages/user/cardetails.jsx';
 import MyBookings from './pages/user/mybookings.jsx';
 
 // Administrative Command Center Pages
-import AddCar from './pages/admin/addcar.jsx'; // 🟢 Import your brand new Add Car component form!
+import AddCar from './pages/admin/addcar.jsx'; 
 import ManageCars from './pages/admin/managecars.jsx';
 import ManageRentals from './pages/admin/managerentals.jsx';
 import ManageUsers from './pages/admin/manageusers.jsx';
@@ -22,10 +22,19 @@ import ManageUsers from './pages/admin/manageusers.jsx';
 import Login from './pages/auth/login.jsx';
 import Register from './pages/auth/register.jsx';
 
+// 🔒 CUSTOMER TRACK ROUTE GATE GUARD COMPONENT
+// Blocks unauthenticated strangers from accessing private user pages manually via URL injection
+function UserProtectedRoute({ auth, children }) {
+  if (!auth.isLoggedIn) {
+    alert("Access Denied. Please sign into your account to access your private reservation portal! 🔒");
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
 function App() {
   // Global Session State tracking
   const [auth, setAuth] = useState(() => {
-    // 🟢 Read from sessionStorage to maintain correct dynamic session lifecycles
     const savedUser = sessionStorage.getItem('user');
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
@@ -36,7 +45,6 @@ function App() {
       };
     }
     
-    // 🟢 DEFAULT GUEST STATE: Start completely logged out so users browse freely first!
     return {
       isLoggedIn: false, 
       email: '',
@@ -44,7 +52,6 @@ function App() {
     };
   });
 
-  // Keep state synchronized with storage handles if it changes programmatically
   useEffect(() => {
     if (auth.isLoggedIn) {
       const basicUserData = { email: auth.email, role: auth.role };
@@ -53,7 +60,6 @@ function App() {
   }, [auth]);
 
   const handleLogout = () => {
-    // 🟢 Reset authentication flags on logout and completely wipe active tokens
     setAuth({ isLoggedIn: false, email: '', role: 'user' });
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
@@ -70,7 +76,16 @@ function App() {
         <Route index element={<Home auth={auth} />} />
         <Route path="cars" element={<CarBrowsing />} />
         <Route path="car/:id" element={<CarDetails />} /> 
-        <Route path="bookings" element={<MyBookings />} />
+        
+        {/* 🟢 PROTECTED: Wrapped in user authentication guard component */}
+        <Route 
+          path="bookings" 
+          element={
+            <UserProtectedRoute auth={auth}>
+              <MyBookings auth={auth} />
+            </UserProtectedRoute>
+          } 
+        />
       </Route>
 
       {/* ADMINISTRATOR TRACK */}
@@ -84,7 +99,6 @@ function App() {
           )
         }
       >
-        {/* 🟢 Mounted your AddCar workspace component directly as the primary landing dashboard */}
         <Route path="dashboard" element={<AddCar />} />
         <Route path="cars" element={<ManageCars />} />
         <Route path="rentals" element={<ManageRentals />} />

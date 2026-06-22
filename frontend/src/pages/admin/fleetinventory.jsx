@@ -1,19 +1,16 @@
-// frontend/src/pages/admin/managecars.jsx
+// frontend/src/pages/admin/fleetinventory.jsx
 import React, { useState, useEffect } from 'react';
-import { getAllCars } from '../../services/carservice.js';
+import axios from 'axios';
 
 function ManageCars() {
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Hook directly into your real backend database cluster
   useEffect(() => {
     const fetchCars = async () => {
       try {
-        const carData = await getAllCars();
-        if (Array.isArray(carData)) {
-          setCars(carData);
-        }
+        const response = await axios.get('http://localhost:5000/api/cars');
+        setCars(response.data);
       } catch (error) {
         console.error('Error fetching inventory:', error);
       } finally {
@@ -40,10 +37,10 @@ function ManageCars() {
             <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
               <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Vehicle Image</th>
               <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Vehicle Details</th>
-              <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Operational Location Hub</th>
               <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Classification</th>
               <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Fuel Type</th>
               <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Daily Rate</th>
+              <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -65,13 +62,22 @@ function ManageCars() {
                     <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '1rem' }}>{car.name}</div>
                     <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.15rem' }}>{car.brand}</div>
                   </td>
-                  <td style={{ padding: '1rem', color: '#0284c7', fontSize: '0.95rem', fontWeight: '600' }}>
-                    {car.hub?.name || 'Unassigned Hub Terminal'}
-                  </td>
                   <td style={{ padding: '1rem', color: '#334155', fontSize: '0.95rem' }}>{car.type}</td>
                   <td style={{ padding: '1rem', color: '#334155', fontSize: '0.95rem' }}>{car.fuelType}</td>
                   <td style={{ padding: '1rem', fontWeight: '700', color: '#0f172a', fontSize: '1rem' }}>
                     ₹{Number(car.rentPerDay).toLocaleString('en-IN')}/day
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    <span style={{ 
+                      padding: '0.35rem 0.75rem', 
+                      borderRadius: '50px', 
+                      fontSize: '0.75rem', 
+                      fontWeight: '700', 
+                      backgroundColor: car.isAvailable !== false ? '#d1fae5' : '#fee2e2', 
+                      color: car.isAvailable !== false ? '#065f46' : '#991b1b' 
+                    }}>
+                      {car.isAvailable !== false ? 'AVAILABLE' : 'RENTED'}
+                    </span>
                   </td>
                 </tr>
               ))

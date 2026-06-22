@@ -1,21 +1,41 @@
 // frontend/src/services/carservice.js
+import axios from 'axios';
 import api from './api.js';
 
-// Get all cars from database
+const API_URL = 'http://localhost:5000/api';
+
+/**
+ * 1. FETCH ALL VEHICLES
+ * Pulls the entire car inventory list from the system database
+ */
 export const getAllCars = async () => {
-  const response = await api.get('cars'); // Trims the leading slash to append safely
+  const response = await axios.get(`${API_URL}/cars`);
   return response.data;
 };
 
-// Get a single car record by its database ID
+/**
+ * 2. FETCH SINGLE VEHICLE PROFILE
+ * Pulls full technical specs and relational details for an individual vehicle asset ID
+ */
 export const getCarById = async (id) => {
-  const response = await api.get(`cars/${id.trim()}`); // Appends directly to /api/
+  const response = await axios.get(`${API_URL}/cars/${id}`);
   return response.data;
 };
 
-// Add a new car listing
-export const addNewCar = async (carData) => {
-  // 🟢 Changed from 'cars/add' to 'cars' to match your backend POST route exactly!
-  const response = await api.post('cars', carData);
+/**
+ * 3. DEPLOY A NEW VEHICLE (Administrative Management Tool)
+ * Sends a car configuration object containing a structural hub reference ID
+ */
+export const addCar = async (carData) => {
+  const response = await api.post(`/cars`, carData);
+  return response.data;
+};
+
+/**
+ * 4. FETCH ALL ACTIVE PICKUP HUBS
+ * Pulls the auto-seeded station locations (Cochin, TVM, Calicut) from the grid database
+ */
+export const getAllHubs = async () => {
+  const response = await axios.get(`${API_URL}/hubs`);
   return response.data;
 };

@@ -65,10 +65,31 @@ function UserLayout({ auth, onLogout }) {
         </Link>
 
         {/* Center: Global Navigation Links */}
-        <nav style={{ display: 'flex', gap: '2rem' }}>
-          <Link to="/" style={{ color: '#475569', textDecoration: 'none', fontSize: '0.95rem', fontWeight: '500' }}>Home</Link>
-          <Link to="/cars" style={{ color: '#475569', textDecoration: 'none', fontSize: '0.95rem', fontWeight: '500' }}>Browse Cars</Link>
-          <Link to="/bookings" style={{ color: '#475569', textDecoration: 'none', fontSize: '0.95rem', fontWeight: '500' }}>My Bookings</Link>
+        <nav style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+          <Link to="/" style={{ color: '#475569', textDecoration: 'none', fontSize: '0.95rem', fontWeight: '500' }}>
+            Home
+          </Link>
+          <Link to="/cars" style={{ color: '#475569', textDecoration: 'none', fontSize: '0.95rem', fontWeight: '500' }}>
+            Browse Cars
+          </Link>
+          
+          {/* 🔒 THE SECURITY GATE: Only display 'My Bookings' if a user session is validated and active */}
+          {currentUser && currentUser.isLoggedIn === true && (
+            <Link 
+              to="/bookings" 
+              style={{ 
+                color: '#2563eb', 
+                textDecoration: 'none', 
+                fontSize: '0.95rem', 
+                fontWeight: '600',
+                backgroundColor: '#eff6ff',
+                padding: '0.35rem 0.75rem',
+                borderRadius: '6px'
+              }}
+            >
+              My Bookings
+            </Link>
+          )}
         </nav>
 
         {/* Right Side: Strict Authorization State Component Toggle */}

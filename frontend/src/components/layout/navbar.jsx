@@ -5,8 +5,20 @@ import { Link, useNavigate } from 'react-router-dom';
 function Navbar() {
   const navigate = useNavigate();
 
-  // Temporary mock role for testing routing states
-  const userRole = "user"; 
+  // 1. Check if a user session token is actively saved in the browser storage
+  const isAuthenticated = !!sessionStorage.getItem('token');
+
+  // Safely grab user email if stored during login, otherwise fallback to generic label
+  const userEmail = sessionStorage.getItem('email') || "User Account";
+
+  // Handle a clean session destruction on logout
+  const handleLogout = () => {
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('email');
+    sessionStorage.removeItem('role');
+    alert("Logged out successfully! 👋");
+    navigate('/login');
+  };
 
   return (
     <nav style={{ backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', padding: '1rem 2rem' }}>
@@ -19,16 +31,21 @@ function Navbar() {
           </Link>
           
           {/* Main User Navigation Links */}
-          <div style={{ display: 'flex', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
             <Link to="/" style={{ textDecoration: 'none', color: '#475569', fontSize: '0.9rem', fontWeight: '500' }}>
               Home
             </Link>
+            
             <Link to="/cars" style={{ textDecoration: 'none', color: '#475569', fontSize: '0.9rem', fontWeight: '500' }}>
               Browse Cars
             </Link>
-            <Link to="/bookings" style={{ textDecoration: 'none', color: '#475569', fontSize: '0.9rem', fontWeight: '500' }}>
-              My Rentals
-            </Link>
+            
+            {/* 🔒 THE SECURITY GATE: "My Rentals" only renders if the user is verified/authenticated */}
+            {isAuthenticated && (
+              <Link to="/bookings" style={{ textDecoration: 'none', color: '#475569', fontSize: '0.9rem', fontWeight: '600', backgroundColor: '#f1f5f9', padding: '0.4rem 0.8rem', borderRadius: '6px' }}>
+                My Rentals
+              </Link>
+            )}
             
             {/* Quick link to test the admin side if needed */}
             <Link to="/admin/dashboard" style={{ textDecoration: 'none', color: '#dc2626', fontSize: '0.9rem', fontWeight: '600' }}>
@@ -39,15 +56,28 @@ function Navbar() {
 
         {/* User Context Actions Frame */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.9rem' }}>
-          <span style={{ color: '#64748b', backgroundColor: '#f1f5f9', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-            Role: <strong>{userRole}</strong>
-          </span>
-          <button 
-            onClick={() => navigate('/login')} 
-            style={{ backgroundColor: '#f1f5f9', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '500', color: '#334155' }}
-          >
-            Logout
-          </button>
+          {isAuthenticated ? (
+            // Shown ONLY if logged in 🟢
+            <>
+              <span style={{ color: '#1e293b', backgroundColor: '#eff6ff', padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid #bfdbfe', fontWeight: '500' }}>
+                👤 {userEmail}
+              </span>
+              <button 
+                onClick={handleLogout} 
+                style={{ backgroundColor: '#ef4444', border: 'none', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', color: '#fff' }}
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            // Shown ONLY if logged out 🔴
+            <button 
+              onClick={() => navigate('/login')} 
+              style={{ backgroundColor: '#2563eb', border: 'none', padding: '0.5rem 1.2rem', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', color: '#fff' }}
+            >
+              Login / Sign Up
+            </button>
+          )}
         </div>
 
       </div>
