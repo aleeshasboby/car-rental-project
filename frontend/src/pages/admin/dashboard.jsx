@@ -65,7 +65,7 @@ function Dashboard() {
       {/* Section Layer: Operations Activity Feed Log */}
       <div style={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.05)' }}>
         <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1e293b', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          🔔 Live System Activity Stream
+           Live System Activity Stream
         </h3>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

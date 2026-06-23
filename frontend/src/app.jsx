@@ -12,6 +12,10 @@ import CarBrowsing from './pages/user/carbrowsing.jsx';
 import CarDetails from './pages/user/cardetails.jsx';
 import MyBookings from './pages/user/mybookings.jsx';
 
+// 🟢 NEW: Customer Footer Link Pages
+import Contact from './pages/user/contact.jsx';
+import Terms from './pages/user/terms.jsx';
+
 // Administrative Command Center Pages
 import AddCar from './pages/admin/addcar.jsx'; 
 import ManageCars from './pages/admin/managecars.jsx';
@@ -26,7 +30,7 @@ import Register from './pages/auth/register.jsx';
 // Blocks unauthenticated strangers from accessing private user pages manually via URL injection
 function UserProtectedRoute({ auth, children }) {
   if (!auth.isLoggedIn) {
-    alert("Access Denied. Please sign into your account to access your private reservation portal! 🔒");
+    alert("Access Denied. Please sign into your account to book vehicles ");
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -77,7 +81,11 @@ function App() {
         <Route path="cars" element={<CarBrowsing />} />
         <Route path="car/:id" element={<CarDetails />} /> 
         
-        {/* 🟢 PROTECTED: Wrapped in user authentication guard component */}
+        {/* 🟢 NEW: Public routing endpoints mapped to footer navigation links */}
+        <Route path="contact" element={<Contact />} />
+        <Route path="terms" element={<Terms />} />
+        
+        {/* PROTECTED: Wrapped in user authentication guard component */}
         <Route 
           path="bookings" 
           element={

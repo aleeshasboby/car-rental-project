@@ -17,16 +17,16 @@ function AdminLayout({ auth, onLogout }) {
           {/* Main Control Links Stack */}
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <Link to="/admin/dashboard" style={{ color: '#94a3b8', textDecoration: 'none', padding: '0.75rem 1rem', borderRadius: '6px', fontSize: '0.9rem', fontWeight: '500', display: 'block' }}>
-              📊 Analytics Overview
+               Analytics Overview
             </Link>
             <Link to="/admin/cars" style={{ color: '#94a3b8', textDecoration: 'none', padding: '0.75rem 1rem', borderRadius: '6px', fontSize: '0.9rem', fontWeight: '500', display: 'block' }}>
-              🚗 Fleet Inventory
+               Fleet Inventory
             </Link>
             <Link to="/admin/rentals" style={{ color: '#94a3b8', textDecoration: 'none', padding: '0.75rem 1rem', borderRadius: '6px', fontSize: '0.9rem', fontWeight: '500', display: 'block' }}>
-              📋 Rental Ledgers
+               Rental Ledgers
             </Link>
             <Link to="/admin/users" style={{ color: '#94a3b8', textDecoration: 'none', padding: '0.75rem 1rem', borderRadius: '6px', fontSize: '0.9rem', fontWeight: '500', display: 'block' }}>
-              👥 User Accounts
+               User Accounts
             </Link>
           </nav>
         </div>
@@ -45,7 +45,7 @@ function AdminLayout({ auth, onLogout }) {
             onClick={onLogout}
             style={{ w: '100%', width: '100%', backgroundColor: '#334155', color: '#f8fafc', border: 'none', padding: '0.6rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', transition: 'background 0.2s' }}
           >
-            Exit Terminal Logout
+             Logout
           </button>
         </div>
       </aside>
@@ -55,7 +55,7 @@ function AdminLayout({ auth, onLogout }) {
         {/* Top Minimal Bar */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '1px solid #e2e8f0' }}>
           <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '500' }}>
-            System Environment Status: <strong style={{ color: '#10b981' }}>● Operational Live</strong>
+            System Environment Status: <strong style={{ color: '#10b981' }}> Operational Live</strong>
           </span>
         </div>
         

@@ -50,7 +50,7 @@ function AddCar() {
     }
     try {
       await addCar(formData);
-      alert('New vehicle successfully added and deployed to hub station! 🚗✨');
+      alert('New vehicle successfully added and deployed to hub station');
       setFormData({
         name: '', 
         brand: '', 
@@ -96,12 +96,12 @@ function AddCar() {
         </div>
 
         <div>
-          <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Car Model Name</label>
+          <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Car Model </label>
           <input type="text" name="name" value={formData.name} onChange={handleChange} required style={{ width: '100%', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box', marginTop: '0.25rem', fontSize: '0.95rem' }} placeholder="e.g., Thar, Model 3, Fortuner" />
         </div>
 
         <div>
-          <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Manufacturer Brand</label>
+          <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}> Brand</label>
           <input type="text" name="brand" value={formData.brand} onChange={handleChange} required style={{ width: '100%', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box', marginTop: '0.25rem', fontSize: '0.95rem' }} placeholder="e.g., Mahindra, Tesla, Toyota" />
         </div>
 
@@ -132,12 +132,12 @@ function AddCar() {
         </div>
 
         <div>
-          <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Vehicle Catalog Image Link</label>
+          <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Vehicle Image Address</label>
           <input type="text" name="image" value={formData.image} onChange={handleChange} required style={{ width: '100%', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box', marginTop: '0.25rem', fontSize: '0.95rem' }} placeholder="https://images.unsplash.com/your-car-image.png" />
         </div>
 
         <button type="submit" style={{ width: '100%', padding: '0.85rem', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '700', fontSize: '1rem', cursor: 'pointer', marginTop: '1rem' }}>
-          + Deploy New Vehicle Assets
+          + Add New Vehicle 
         </button>
       </form>
     </div>

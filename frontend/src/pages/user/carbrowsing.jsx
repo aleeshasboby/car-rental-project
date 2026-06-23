@@ -92,7 +92,7 @@ function CarBrowsing() {
             onClick={() => navigate('/')}
             style={{ backgroundColor: '#fff', border: '1px solid #cbd5e1', padding: '0.6rem 1.2rem', borderRadius: '6px', fontWeight: '600', color: '#475569', cursor: 'pointer' }}
           >
-            📍 Change Location
+             Change Location
           </button>
         )}
       </div>
@@ -171,8 +171,8 @@ function CarBrowsing() {
                   </div>
 
                   <div style={{ display: 'flex', gap: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9', fontSize: '0.85rem', color: '#475569' }}>
-                    <span>💺 {car.seats || 5} Seats</span>
-                    <span>⛽ {car.fuelType}</span>
+                    <span> {car.seats || 5} Seats</span>
+                    <span> {car.fuelType}</span>
                   </div>
 
                   {isBookedOut ? (
@@ -187,7 +187,7 @@ function CarBrowsing() {
                       onClick={() => {
                         const activeToken = sessionStorage.getItem('token');
                         if (!activeToken) {
-                          alert("Please sign in to reserve this vehicle! 🔒");
+                          alert("Please sign in to reserve this vehicle");
                           navigate('/login', { state: { redirectTo: `/car/${car._id}` } });
                         } else {
                           navigate(`/car/${car._id}`);

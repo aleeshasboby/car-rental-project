@@ -105,7 +105,7 @@ function Login({ setAuth }) {
           </form>
           
           <p style={{ textAlign: 'center', fontSize: '0.8rem', color: '#64748b', marginTop: '1.5rem', marginBottom: '0' }}>
-            Don't have an account? <Link to="/register" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>Register here</Link>
+            Don't have an account? <Link to="/register" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>Register</Link>
           </p>
         </div>
 

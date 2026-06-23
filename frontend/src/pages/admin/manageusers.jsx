@@ -35,7 +35,7 @@ function ManageUsers() {
 
     try {
       await updateUserRole(userId, targetRole);
-      alert('User privileges updated successfully! 🎉');
+      alert('User privileges updated successfully');
       // Refresh list to instantly show visual update
       fetchUsersList();
     } catch (err) {

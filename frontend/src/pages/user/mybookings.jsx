@@ -1,7 +1,6 @@
 // src/pages/user/mybookings.jsx
 import React, { useState, useEffect } from 'react';
-import api from '../../services/api.js'; // 🟢 FIXED: Switched from direct axios to your pre-configured api client wrapper
-
+import api from '../../services/api.js'; 
 function MyBookings({ auth }) {
   const [myRides, setMyRides] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,7 +11,6 @@ function MyBookings({ auth }) {
       try {
         setLoading(true);
         
-        // 1. Resolve current user identity vectors safely
         const userEmail = auth?.email || JSON.parse(sessionStorage.getItem('user'))?.email || localStorage.getItem('userEmail');
 
         if (!userEmail) {
@@ -20,12 +18,9 @@ function MyBookings({ auth }) {
           return;
         }
 
-        // 2. Query your live backend endpoint passing identity parameters via dynamic route path
-        // 🟢 FIXED: Points cleanly to /bookings/your-email matching backend route: router.get('/:email')
         const response = await api.get(`/bookings/${userEmail}`);
 
-        // 3. Populate state container with filtered response data array
-        setMyRides(response.data);
+         setMyRides(response.data);
       } catch (err) {
         console.error("Database tracking link failure:", err);
         setError("Could not extract individual booking ledgers from server uplink.");
@@ -40,7 +35,7 @@ function MyBookings({ auth }) {
   if (loading) {
     return (
       <div style={{ minHeight: '60vh', display: 'flex', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif', color: '#64748b' }}>
-        <h3>Loading your secure rental ledger... ⏳</h3>
+        <h3>Loading your secure rental ledger... </h3>
       </div>
     );
   }
@@ -56,7 +51,6 @@ function MyBookings({ auth }) {
   return (
     <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       
-      {/* Dynamic Welcome Headers */}
       <div style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#1e293b', margin: 0 }}>
           My Bookings Ledger
@@ -66,7 +60,6 @@ function MyBookings({ auth }) {
         </p>
       </div>
 
-      {/* Grid Stack Loop displaying individual reservation tickets */}
       {myRides.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem 0', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📅</div>
@@ -89,7 +82,6 @@ function MyBookings({ auth }) {
                 boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.05)'
               }}
             >
-              {/* Left Frame: Trip Details */}
               <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
                 <div style={{ fontSize: '2.5rem', backgroundColor: '#f1f5f9', padding: '0.75rem', borderRadius: '10px' }}>
                   {ride.car?.type === 'SUV' ? '🚙' : '🚗'}
@@ -117,7 +109,6 @@ function MyBookings({ auth }) {
                 </div>
               </div>
 
-              {/* Right Frame: Cost Breakdown & Functional Action Badges */}
               <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
                 <div>
                   <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Total Due</span>

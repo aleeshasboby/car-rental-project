@@ -61,7 +61,7 @@ function UserLayout({ auth, onLogout }) {
         
         {/* Left Side: Logo Branding Anchor */}
         <Link to="/" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          🚗 CarGo
+           CarGo
         </Link>
 
         {/* Center: Global Navigation Links */}

@@ -129,7 +129,7 @@ function CarDetails({ auth }) {
           
           {/* 🟢 FIXED: Replaced raw asterisks markdown with semantic HTML tags */}
           <p style={{ margin: '0 0 0.75rem 0', color: '#475569', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            📍 <strong>Garaged at:</strong> {car.hub?.name || car.hubName || 'Main Station'}
+             <strong>Garaged at:</strong> {car.hub?.name || car.hubName || 'Main Station'}
           </p>
           <p style={{ margin: '0 0 1.5rem 0', color: '#64748b', fontSize: '0.9rem', lineHeight: '1.5' }}>
             {car.address || 'Operational Station Hub Complex Area'}
@@ -147,7 +147,7 @@ function CarDetails({ auth }) {
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', boxSizing: 'border-box' }}>
           {bookingSuccess ? (
             <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}></div>
               <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.5rem' }}>Booking Confirmed!</h2>
               <p style={{ color: '#64748b', marginBottom: '2rem', lineHeight: '1.5' }}>Your rental request has been registered in the database engine for <strong>{userEmail}</strong>.</p>
               <button onClick={() => navigate('/bookings')} style={{ backgroundColor: '#0f172a', color: '#fff', border: 'none', padding: '0.85rem 1.5rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', width: '100%' }}>View My Rentals</button>

@@ -40,7 +40,7 @@ function ManageCars() {
             <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
               <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Vehicle Image</th>
               <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Vehicle Details</th>
-              <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Operational Location Hub</th>
+              <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Hub Location </th>
               <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Classification</th>
               <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Fuel Type</th>
               <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Daily Rate</th>

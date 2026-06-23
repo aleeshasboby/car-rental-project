@@ -43,7 +43,7 @@ function ManageRentals() {
   if (loading) {
     return (
       <div style={{ minHeight: '60vh', display: 'flex', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif', color: '#64748b' }}>
-        <h3>Connecting to Live Global Ledger Vault... 📡</h3>
+        <h3>Connecting to Live Global Ledger Vault.</h3>
       </div>
     );
   }
@@ -82,8 +82,8 @@ function ManageRentals() {
                 <th style={{ padding: '0.75rem 1rem' }}>Booking ID</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Customer Email</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Vehicle</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Rental Dates</th> {/* 🟢 FIXED */}
-                <th style={{ padding: '0.75rem 1rem' }}>Total Duration</th> {/* 🟢 FIXED */}
+                <th style={{ padding: '0.75rem 1rem' }}>Rental Dates</th> 
+                <th style={{ padding: '0.75rem 1rem' }}>Total Duration</th> 
                 <th style={{ padding: '0.75rem 1rem' }}>Total Cost</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Status Badge</th>
                 <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
