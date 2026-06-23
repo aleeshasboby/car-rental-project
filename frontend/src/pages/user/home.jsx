@@ -2,10 +2,25 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// Haversine formula to compute distance between coordinates in kilometers
+function getDistanceKM(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 function Home() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedHub, setSelectedHub] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedPlace, setSelectedPlace] = useState(null);
 
   const regionalHubs = [
     { name: "Kattakada Market Hub, Trivandrum", lat: 8.5033, lng: 77.0852 },
@@ -16,19 +31,62 @@ function Home() {
     { name: "Trivandrum Central Railway Station Hub", lat: 8.4867, lng: 76.9522 }
   ];
 
-  const filteredHubs = regionalHubs.filter(hub =>
-    hub.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Triggers live address search when typing
+  const handleInputChange = async (value) => {
+    setSearchQuery(value);
+    if (selectedPlace) setSelectedPlace(null);
+
+    if (value.trim().length < 3) {
+      setSuggestions([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Queries global geocoding API filtered specifically for Indian locations
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}&countrycodes=in&limit=5`);
+      const data = await res.json();
+      
+      const mappedResults = data.map(item => ({
+        display_name: item.display_name,
+        lat: parseFloat(item.lat),
+        lng: parseFloat(item.lon)
+      }));
+      setSuggestions(mappedResults);
+    } catch (err) {
+      console.error("Geocoding fetch failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const processSelection = (place) => {
+    setSearchQuery(place.display_name);
+    setSelectedPlace(place);
+    setSuggestions([]);
+
+    // Filters down your hubs using a 40 km threshold boundary
+    const nearbyHubs = regionalHubs.filter(hub => {
+      const distance = getDistanceKM(place.lat, place.lng, hub.lat, hub.lng);
+      return distance <= 40;
+    });
+
+    if (nearbyHubs.length > 0) {
+      const closestHub = nearbyHubs[0];
+      navigate(`/cars?lat=${closestHub.lat}&lng=${closestHub.lng}&label=${encodeURIComponent(closestHub.name)}`);
+    } else {
+      alert(`We located "${place.display_name.split(',')[0]}", but there are currently no transit hubs within 40 km of this region.`);
+    }
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (selectedHub) {
-      navigate(`/cars?lat=${selectedHub.lat}&lng=${selectedHub.lng}&label=${encodeURIComponent(selectedHub.name)}`);
-    } else if (filteredHubs.length > 0) {
-      const fallbackHub = filteredHubs[0];
-      navigate(`/cars?lat=${fallbackHub.lat}&lng=${fallbackHub.lng}&label=${encodeURIComponent(fallbackHub.name)}`);
+    if (selectedPlace) {
+      processSelection(selectedPlace);
+    } else if (suggestions.length > 0) {
+      processSelection(suggestions[0]);
     } else {
-      alert("Please choose a valid hub from the selection pool! ");
+      alert("Please enter a valid location and select it from the search results pool.");
     }
   };
 
@@ -44,7 +102,6 @@ function Home() {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          // Linear gradient shifted from blue-slate to clean black masks
           backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.7)), url('https://static-cdn.cars24.com/prod/auto-news24-cms/cars24-blog-images/2026/02/09/4533d794-10b5-4473-96e7-801eff61ca6c-top-11-most-expensive-cars-in-india--price-specification-and-features.webp')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
@@ -71,7 +128,7 @@ function Home() {
           
           <p style={{ 
             fontSize: '1.25rem', 
-            color: '#a3a3a3', // Soft crisp light gray text
+            color: '#a3a3a3', 
             lineHeight: '1.6',
             textShadow: '0 2px 8px rgba(0,0,0,0.5)',
             maxWidth: '650px',
@@ -81,7 +138,7 @@ function Home() {
           </p>
 
           <div style={{
-            backgroundColor: '#121212', // Charcoal black form wrapper card
+            backgroundColor: '#121212', 
             padding: '2rem',
             borderRadius: '24px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
@@ -101,21 +158,16 @@ function Home() {
                 <div style={{ flex: 1, position: 'relative' }}>
                   <input 
                     type="text"
-                    placeholder="Type to search "
+                    placeholder="Type to search..."
                     value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      if (selectedHub && e.target.value !== selectedHub.name) {
-                        setSelectedHub(null);
-                      }
-                    }}
+                    onChange={(e) => handleInputChange(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '1.1rem 1.25rem',
                       borderRadius: '12px',
                       border: '2px solid #262626',
-                      backgroundColor: '#1a1a1a', // Dark grey interior input
-                      color: '#ffffff', // Input text typing color
+                      backgroundColor: '#1a1a1a', 
+                      color: '#ffffff', 
                       fontSize: '1rem',
                       fontWeight: '500',
                       outline: 'none',
@@ -123,13 +175,13 @@ function Home() {
                     }}
                   />
 
-                  {searchQuery && !selectedHub && (
+                  {suggestions.length > 0 && (
                     <div style={{
                       position: 'absolute',
                       top: '105%',
                       left: 0,
                       right: 0,
-                      backgroundColor: '#1a1a1a', // Black-gray flyout panel container
+                      backgroundColor: '#1a1a1a', 
                       borderRadius: '12px',
                       border: '1px solid #262626',
                       boxShadow: '0 10px 25px -5px rgba(0,0,0,0.7)',
@@ -138,33 +190,35 @@ function Home() {
                       overflowY: 'auto',
                       padding: '0.5rem'
                     }}>
-                      {filteredHubs.length === 0 ? (
-                        <div style={{ padding: '0.75rem 1rem', color: '#737373', fontSize: '0.9rem' }}>No hubs found matching that query.</div>
-                      ) : (
-                        filteredHubs.map((hub, idx) => (
-                          <div 
-                            key={idx}
-                            onClick={() => {
-                              setSelectedHub(hub);
-                              setSearchQuery(hub.name);
-                            }}
-                            style={{
-                              padding: '0.75rem 1rem',
-                              borderRadius: '8px',
-                              cursor: 'pointer',
-                              fontSize: '0.95rem',
-                              fontWeight: '500',
-                              color: '#ffffff', // Dropdown item list label colour
-                              backgroundColor: 'transparent',
-                              transition: 'background-color 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.target.style.backgroundColor = '#262626'}
-                            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                          >
-                             {hub.name}
-                          </div>
-                        ))
-                      )}
+                      {suggestions.map((place, idx) => (
+                        <div 
+                          key={idx}
+                          onClick={() => processSelection(place)}
+                          style={{
+                            padding: '0.75rem 1rem',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '0.9rem',
+                            fontWeight: '500',
+                            color: '#ffffff', 
+                            backgroundColor: 'transparent',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#262626'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                        >
+                           📍 {place.display_name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {loading && (
+                    <div style={{ position: 'absolute', right: '1.25rem', top: '35%', color: '#737373', fontSize: '0.85rem' }}>
+                      Searching...
                     </div>
                   )}
                 </div>
@@ -172,8 +226,8 @@ function Home() {
                 <button 
                   type="submit"
                   style={{
-                    backgroundColor: '#ffffff', // High contrast stark white search button
-                    color: '#000000', // Black inner button typography
+                    backgroundColor: '#ffffff', 
+                    color: '#000000', 
                     border: 'none',
                     padding: '0 2rem',
                     borderRadius: '12px',
@@ -196,7 +250,7 @@ function Home() {
 
       {/* FOOTER CONTAINER: COPYRIGHT & CONTACT NAVIGATION */}
       <footer style={{ 
-        backgroundColor: '#121212', // Changed from deep slate blue to Material Charcoal Black
+        backgroundColor: '#121212', 
         color: '#a3a3a3', 
         padding: '1.5rem 2rem', 
         borderTop: '1px solid #262626',
