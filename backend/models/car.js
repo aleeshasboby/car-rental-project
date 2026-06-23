@@ -12,12 +12,10 @@ const carSchema = new mongoose.Schema({
   
   hub: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Hub', // 🟢 This string MUST match the exact capitalization of the registered model name ('Hub')
-    required: true 
+    ref: 'Hub',     required: true 
   }
 }, { 
   timestamps: true,
-  collection: 'cars' // 🟢 Explicitly handles the vehicles collection
-});
+  collection: 'cars' });
 
 export default mongoose.model('Car', carSchema);

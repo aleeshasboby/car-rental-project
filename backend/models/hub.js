@@ -7,7 +7,7 @@ const hubSchema = new mongoose.Schema({
   longitude: { type: Number, required: true }          
 }, { 
   timestamps: true,
-  collection: 'hubs' // 🟢 FORCES Mongoose to lock directly onto the lowercase 'hubs' collection map
+  collection: 'hubs' 
 });
 
 export default mongoose.model('Hub', hubSchema);

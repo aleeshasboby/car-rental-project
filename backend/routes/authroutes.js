@@ -7,7 +7,6 @@ import User from '../models/user.js';
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'cargo_super_secret_key_123';
 
-// 📝 USER REGISTRATION
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -30,7 +29,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// 🔑 USER LOGIN
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;

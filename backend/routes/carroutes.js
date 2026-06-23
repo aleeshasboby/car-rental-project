@@ -2,15 +2,13 @@
 import express from 'express';
 import Car from '../models/car.js';
 import User from '../models/user.js'; 
-import Hub from '../models/hub.js'; // 🟢 Ensure Hub model is explicitly imported for population reference
-import { verifyAdmin } from '../middleware/authmiddleware.js';
+import Hub from '../models/hub.js'; import { verifyAdmin } from '../middleware/authmiddleware.js';
 const router = express.Router();
 
 // 1. GET ALL CARS (Updated to populate Hub data maps!)
 router.get('/', async (req, res) => {
   try {
-    // 🟢 Tells Mongoose to automatically look up the Hub object using its stored ID reference
-    const cars = await Car.find().populate({
+        const cars = await Car.find().populate({
       path: 'hub',
       model: Hub
     });
@@ -45,7 +43,6 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 3. 🟢 ADMIN ENDPOINT: Add a new vehicle to the inventory catalog
 router.post('/', verifyAdmin, async (req, res) => {
   try {
     const newCar = new Car(req.body);
@@ -56,7 +53,6 @@ router.post('/', verifyAdmin, async (req, res) => {
   }
 });
 
-// 4. 🟢 ADMIN ENDPOINT: Fetch all registered users from database
 router.get('/management/users', verifyAdmin, async (req, res) => {
   try {
     const users = await User.find().select('-password');
@@ -66,7 +62,6 @@ router.get('/management/users', verifyAdmin, async (req, res) => {
   }
 });
 
-// 5. 🟢 ADMIN ENDPOINT: Update a user's role (Promote/Demote)
 router.put('/management/users/:id/role', verifyAdmin, async (req, res) => {
   try {
     const { role } = req.body;
