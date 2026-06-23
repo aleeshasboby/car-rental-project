@@ -56,7 +56,8 @@ function CarDetails({ auth }) {
     
     if (days <= 0) return { days: 0, total: 0 };
     
-    const operationalPrice = car.pricePerDay || car.rentPerDay || 0;
+    // 🟢 FIXED: Prioritizing your direct database input price tag for the arithmetic loop
+    const operationalPrice = car.rentPerDay !== undefined ? car.rentPerDay : (car.pricePerDay || 0);
     return { days, total: days * operationalPrice };
   };
 
@@ -96,6 +97,9 @@ function CarDetails({ auth }) {
   if (error) return <div style={{ textAlign: 'center', padding: '5rem', fontFamily: 'sans-serif', color: '#ef4444' }}><h3>⚠️ {error}</h3></div>;
   if (!car) return null;
 
+  // 🟢 FIXED: Safely identify if the string is a valid file link or direct base64 data stream
+  const isAnActualImageFile = car.image && (car.image.startsWith('http') || car.image.startsWith('/') || car.image.startsWith('data:'));
+
   return (
     <div style={{ minHeight: '90vh', backgroundColor: '#f8fafc', padding: '3rem 2rem', fontFamily: 'sans-serif', boxSizing: 'border-box' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem', alignItems: 'start' }}>
@@ -103,16 +107,18 @@ function CarDetails({ auth }) {
         {/* LEFT COLUMN: VEHICLE DETAILS DISPLAY CARD */}
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', boxSizing: 'border-box' }}>
           
-          {/* 🟢 FIXED: Safe image frame check that handles URL string renders vs fallbacks */}
+          {/* 🟢 FIXED: Constrains image and prevents text fallback overflow */}
           <div style={{ backgroundColor: '#f8fafc', borderRadius: '12px', height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem', overflow: 'hidden', padding: '1rem', border: '1px solid #f1f5f9' }}>
-            {car.image && car.image.startsWith('http') ? (
+            {isAnActualImageFile ? (
               <img 
                 src={car.image} 
                 alt={car.name} 
                 style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} 
               />
             ) : (
-              <div style={{ fontSize: '5rem' }}>{car.image || (car.type === 'SUV' ? '🚙' : '🚗')}</div>
+              <div style={{ fontSize: '6rem' }}>
+                {car.image || (car.type?.toLowerCase().includes('suv') ? '🚙' : car.type?.toLowerCase().includes('sedan') ? '🚘' : '🚗')}
+              </div>
             )}
           </div>
 
@@ -121,13 +127,19 @@ function CarDetails({ auth }) {
           
           <hr style={{ margin: '1.5rem 0', border: '0', borderTop: '1px solid #f1f5f9' }} />
           
-          <p style={{ margin: '0 0 0.75rem 0', color: '#475569', fontWeight: '500' }}>📍 **Garaged at:** {car.hub?.name || car.hubName || 'Main Station'}</p>
-          <p style={{ margin: '0 0 1.5rem 0', color: '#64748b', fontSize: '0.9rem', lineHeight: '1.5' }}>{car.address || 'Operational Station Hub Complex Area'}</p>
+          {/* 🟢 FIXED: Replaced raw asterisks markdown with semantic HTML tags */}
+          <p style={{ margin: '0 0 0.75rem 0', color: '#475569', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            📍 <strong>Garaged at:</strong> {car.hub?.name || car.hubName || 'Main Station'}
+          </p>
+          <p style={{ margin: '0 0 1.5rem 0', color: '#64748b', fontSize: '0.9rem', lineHeight: '1.5' }}>
+            {car.address || 'Operational Station Hub Complex Area'}
+          </p>
           
           <div style={{ display: 'flex', gap: '1.5rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
             <div style={{ minWidth: '80px' }}><span style={{ fontSize: '0.8rem', color: '#64748b', display: 'block' }}>Capacity</span><strong style={{ color: '#0f172a' }}>💺 {car.seats || 5} Seats</strong></div>
             <div style={{ minWidth: '80px' }}><span style={{ fontSize: '0.8rem', color: '#64748b', display: 'block' }}>Propulsion</span><strong style={{ color: '#0f172a' }}>⛽ {car.fuelType}</strong></div>
-            <div style={{ minWidth: '80px' }}><span style={{ fontSize: '0.8rem', color: '#64748b', display: 'block' }}>Rate</span><strong style={{ color: '#2563eb' }}>₹{car.pricePerDay || car.rentPerDay}/day</strong></div>
+            {/* 🟢 FIXED: Ensuring layout price calculation renders rentPerDay value consistently */}
+            <div style={{ minWidth: '80px' }}><span style={{ fontSize: '0.8rem', color: '#64748b', display: 'block' }}>Rate</span><strong style={{ color: '#2563eb' }}>₹{car.rentPerDay !== undefined ? car.rentPerDay : car.pricePerDay}/day</strong></div>
           </div>
         </div>
 
@@ -137,7 +149,7 @@ function CarDetails({ auth }) {
             <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
               <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
               <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.5rem' }}>Booking Confirmed!</h2>
-              <p style={{ color: '#64748b', marginBottom: '2rem', lineHeight: '1.5' }}>Your rental request has been registered in the database engine for **{userEmail}**.</p>
+              <p style={{ color: '#64748b', marginBottom: '2rem', lineHeight: '1.5' }}>Your rental request has been registered in the database engine for <strong>{userEmail}</strong>.</p>
               <button onClick={() => navigate('/bookings')} style={{ backgroundColor: '#0f172a', color: '#fff', border: 'none', padding: '0.85rem 1.5rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', width: '100%' }}>View My Rentals</button>
             </div>
           ) : (
