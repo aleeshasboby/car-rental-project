@@ -75,7 +75,7 @@ function CarDetails({ auth }) {
       const token = sessionStorage.getItem('token');
       
       const payload = {
-        carId: car._id,
+        car: car._id,
         userEmail: userEmail,
         startDate: startDate,
         endDate: endDate,

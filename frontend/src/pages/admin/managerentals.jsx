@@ -1,9 +1,8 @@
 // src/pages/admin/managerentals.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios'; // Ensure axios is installed, or replace with your standard api client utility
+import api from '../../services/api.js'; 
 
 function ManageRentals() {
-  // 🟢 FIXED: Replaced hardcoded dummy data array with an empty state waiting for the database
   const [rentals, setRentals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,15 +11,7 @@ function ManageRentals() {
   const fetchAllRentals = async () => {
     try {
       setLoading(true);
-      const token = sessionStorage.getItem('token');
-      
-      // Requesting the complete global ledger list across all platform users
-      const response = await axios.get('http://localhost:5000/api/admin/bookings', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      
+      const response = await api.get('/bookings/all'); 
       setRentals(response.data);
     } catch (err) {
       console.error("Failed to query global records backend:", err);
@@ -37,19 +28,7 @@ function ManageRentals() {
   // 2. LIVE DATA PERSISTENCE: Send the updated status directly to MongoDB
   const handleUpdateStatus = async (id, newStatus) => {
     try {
-      const token = sessionStorage.getItem('token');
-      
-      // Fires an update route back to your backend engine controller
-      await axios.patch(`http://localhost:5000/api/admin/bookings/${id}/status`, 
-        { status: newStatus },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-
-      // Optimistically update local layout UI state on successful server resolution
+      await api.patch(`/bookings/${id}/status`, { status: newStatus });
       setRentals(prevRentals => 
         prevRentals.map(item => 
           (item._id || item.id) === id ? { ...item, status: newStatus } : item
@@ -78,7 +57,7 @@ function ManageRentals() {
   }
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       
       {/* Page Header */}
       <div style={{ marginBottom: '2rem' }}>
@@ -103,7 +82,8 @@ function ManageRentals() {
                 <th style={{ padding: '0.75rem 1rem' }}>Booking ID</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Customer Email</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Vehicle</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Duration</th>
+                <th style={{ padding: '0.75rem 1rem' }}>Rental Dates</th> {/* 🟢 FIXED */}
+                <th style={{ padding: '0.75rem 1rem' }}>Total Duration</th> {/* 🟢 FIXED */}
                 <th style={{ padding: '0.75rem 1rem' }}>Total Cost</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Status Badge</th>
                 <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
@@ -119,27 +99,48 @@ function ManageRentals() {
                       {bookingId.substring(0, 8).toUpperCase()}
                     </td>
                     
-                    {/* Customer Identity Field (Using safe fallback values from user schema join) */}
+                    {/* Customer Identity Field */}
                     <td style={{ padding: '1rem', color: '#334155', fontWeight: '500' }}>
-                      {item.user?.email || item.customerEmail || item.email || 'Registered Customer'}
+                      {item.userEmail || item.user?.email || 'Registered Customer'}
                     </td>
                     
-                    {/* Vehicle Details */}
+                    {/* Vehicle Identity */}
                     <td style={{ padding: '1rem', color: '#475569' }}>
-                      {item.car?.name || item.carName || 'Asset Profile'}
+                      {item.car?.name || 'Asset Profile'}
                     </td>
                     
-                    {/* Duration Display */}
-                    <td style={{ padding: '1rem', color: '#64748b' }}>
-                      {item.duration || `${item.totalDays || 1} Days`}
+                    {/* 🟢 FIXED: Real Calendar Dates mapping */}
+                    <td style={{ padding: '1rem', color: '#64748b', fontSize: '0.85rem' }}>
+                      {item.startDate && item.endDate ? (
+                        <>
+                          {new Date(item.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} - {new Date(item.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </>
+                      ) : (
+                        'N/A'
+                      )}
                     </td>
                     
-                    {/* Amount formatted cleanly */}
+                    {/* 🟢 FIXED: Live mathematical day calculations */}
+                    <td style={{ padding: '1rem', color: '#334155', fontWeight: '500' }}>
+                      {item.startDate && item.endDate ? (
+                        (() => {
+                          const start = new Date(item.startDate);
+                          const end = new Date(item.endDate);
+                          const diffTime = Math.abs(end - start);
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          return `${diffDays || 1} ${diffDays === 1 ? 'Day' : 'Days'}`;
+                        })()
+                      ) : (
+                        '1 Day'
+                      )}
+                    </td>
+                    
+                    {/* Amount */}
                     <td style={{ padding: '1rem', fontWeight: '700', color: '#0f172a' }}>
-                      ₹{(item.totalPrice || item.totalAmount || item.amount || 0).toLocaleString('en-IN')}
+                      ₹{(item.totalPrice || item.amount || 0).toLocaleString('en-IN')}
                     </td>
                     
-                    {/* Dynamic Status Badges */}
+                    {/* Badges */}
                     <td style={{ padding: '1rem' }}>
                       <span style={{ 
                         fontSize: '0.75rem', 
@@ -149,11 +150,11 @@ function ManageRentals() {
                         backgroundColor: item.status === 'Confirmed' || item.status === 'Approved' ? '#dcfce7' : item.status === 'Pending Approval' || item.status === 'Pending' ? '#fef9c3' : '#f1f5f9',
                         color: item.status === 'Confirmed' || item.status === 'Approved' ? '#166534' : item.status === 'Pending Approval' || item.status === 'Pending' ? '#a16207' : '#475569'
                       }}>
-                        {item.status}
+                        {item.status || 'Pending'}
                       </span>
                     </td>
 
-                    {/* Interactive Action Buttons */}
+                    {/* Actions */}
                     <td style={{ padding: '1rem', textAlign: 'right' }}>
                       {(item.status === 'Pending Approval' || item.status === 'Pending') && (
                         <button 

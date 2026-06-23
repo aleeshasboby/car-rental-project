@@ -20,3 +20,19 @@ export const getUserBookings = async (email) => {
   const response = await api.get(`/bookings/my-reservations?email=${email}`);
   return response.data;
 };
+
+// Add/update this inside frontend/src/services/rentalservice.js
+
+/**
+ * Fetches all rental logs across the entire system for administrative review
+ */
+export const getAllBookings = async () => {
+  try {
+    // 🟢 Ensure this matches your backend admin booking route (usually /bookings or /bookings/all)
+    const response = await api.get('/bookings'); 
+    return response.data;
+  } catch (error) {
+    console.error("Error inside rentalservice.getAllBookings:", error.response?.data || error.message);
+    throw error;
+  }
+};

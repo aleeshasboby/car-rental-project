@@ -1,6 +1,6 @@
 // src/pages/user/mybookings.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios'; // Ensure axios is installed, or replace with your custom service layer file
+import api from '../../services/api.js'; // 🟢 FIXED: Switched from direct axios to your pre-configured api client wrapper
 
 function MyBookings({ auth }) {
   const [myRides, setMyRides] = useState([]);
@@ -13,21 +13,16 @@ function MyBookings({ auth }) {
         setLoading(true);
         
         // 1. Resolve current user identity vectors safely
-        const token = sessionStorage.getItem('token');
-        const userEmail = auth?.email || JSON.parse(sessionStorage.getItem('user'))?.email;
+        const userEmail = auth?.email || JSON.parse(sessionStorage.getItem('user'))?.email || localStorage.getItem('userEmail');
 
-        if (!token || !userEmail) {
-          setError("Authentication trace missing. Re-routing initialization parameters...");
+        if (!userEmail) {
+          setError("Session identity missing. Please re-authenticate.");
           return;
         }
 
-        // 2. Query your live backend endpoint passing identity verification headers
-        // Adjust this endpoint string mapping to your actual backend configuration (e.g. via email query param or token sub decode)
-        const response = await axios.get(`http://localhost:5000/api/bookings/my-reservations?email=${userEmail}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
+        // 2. Query your live backend endpoint passing identity parameters via dynamic route path
+        // 🟢 FIXED: Points cleanly to /bookings/your-email matching backend route: router.get('/:email')
+        const response = await api.get(`/bookings/${userEmail}`);
 
         // 3. Populate state container with filtered response data array
         setMyRides(response.data);
@@ -104,11 +99,20 @@ function MyBookings({ auth }) {
                     Booking ID: {(ride._id || ride.id).substring(0, 8).toUpperCase()}
                   </span>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', margin: '0.15rem 0 0.4rem 0' }}>
-                    {ride.car?.name || ride.carName || ride.car}
+                    {ride.car?.name || 'Asset Profile'}
                   </h3>
-                  <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem', color: '#64748b' }}>
-                    <span>📅 <strong>Start Date:</strong> {new Date(ride.startDate || ride.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                    <span>⏱️ <strong>Duration:</strong> {ride.duration || `${ride.totalDays || 1} Days`}</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.85rem', color: '#64748b' }}>
+                    {/* 🟢 FIXED: Real Date Span Range formatting */}
+                    <span>📅 <strong>Dates:</strong> {new Date(ride.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - {new Date(ride.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    
+                    {/* 🟢 FIXED: Live math day calculations matching admin ledger tracking */}
+                    <span>⏱️ <strong>Duration:</strong> {(() => {
+                      const start = new Date(ride.startDate);
+                      const end = new Date(ride.endDate);
+                      const diffTime = Math.abs(end - start);
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                      return `${diffDays || 1} ${diffDays === 1 ? 'Day' : 'Days'}`;
+                    })()}</span>
                   </div>
                 </div>
               </div>
@@ -116,9 +120,9 @@ function MyBookings({ auth }) {
               {/* Right Frame: Cost Breakdown & Functional Action Badges */}
               <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
                 <div>
-                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Total Paid</span>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Total Due</span>
                   <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a', marginTop: '-0.15rem' }}>
-                    ₹{(ride.totalPrice || ride.totalAmount || 0).toLocaleString('en-IN')}
+                    ₹{(ride.totalPrice || 0).toLocaleString('en-IN')}
                   </div>
                 </div>
                 
@@ -128,10 +132,10 @@ function MyBookings({ auth }) {
                   padding: '0.3rem 0.6rem', 
                   borderRadius: '6px',
                   display: 'inline-block',
-                  backgroundColor: ride.status === 'Completed' || ride.status === 'Approved' ? '#dcfce7' : '#fef9c3',
-                  color: ride.status === 'Completed' || ride.status === 'Approved' ? '#15803d' : '#a16207'
+                  backgroundColor: ride.status === 'Confirmed' || ride.status === 'Approved' || ride.status === 'Completed' ? '#dcfce7' : '#fef9c3',
+                  color: ride.status === 'Confirmed' || ride.status === 'Approved' || ride.status === 'Completed' ? '#15803d' : '#a16207'
                 }}>
-                  ● {ride.status || 'Active'}
+                  ● {ride.status || 'Pending'}
                 </span>
               </div>
 
