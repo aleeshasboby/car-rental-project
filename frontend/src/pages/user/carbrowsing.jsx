@@ -3,25 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getAllCars } from '../../services/carservice.js';
 
-// THE HAVERSINE FORMULA: Calculates real-world distance between two GPS coordinate sets in KM
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-  const R = 6371; 
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return parseFloat((R * c).toFixed(1)); 
-}
-
 function CarBrowsing() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
-  // Grab search coordinates if they came from a homepage selection
+  // Grab search filters if they came from a homepage selection
   const userLat = parseFloat(searchParams.get('lat'));
   const userLng = parseFloat(searchParams.get('lng'));
   const searchLabel = searchParams.get('label');
@@ -46,24 +32,17 @@ function CarBrowsing() {
     fetchLiveInventory();
   }, []);
 
-  // 1. Calculate distances for all cars
-  const processedCars = allCars.map(car => {
-    const carLat = car.coordinates?.lat || car.hub?.latitude;
-    const carLng = car.coordinates?.lng || car.hub?.longitude;
-    
-    const distance = (userLat && userLng && carLat && carLng) 
-      ? calculateDistance(userLat, userLng, carLat, carLng) 
-      : null;
-      
-    return { ...car, distanceAway: distance };
-  });
-
-  // 2. 🎯 CRITICAL FILTER LOGIC SWITCH
   const isFilteredSearch = !isNaN(userLat) && !isNaN(userLng);
   
+  // Filter vehicles belonging to the hub chosen by the user
   const displayedCars = isFilteredSearch
-    ? processedCars.filter(car => car.distanceAway !== null && car.distanceAway <= 40).sort((a, b) => a.distanceAway - b.distanceAway)
-    : processedCars;
+    ? allCars.filter(car => {
+        const carHubName = (car.hub?.name || car.hubName || '').toLowerCase();
+        const targetedHub = (searchLabel || '').toLowerCase();
+        // Match the car to the specific selected hub terminal
+        return carHubName.includes(targetedHub) || targetedHub.includes(carHubName);
+      })
+    : allCars;
 
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#64748b' }}><h3>Scanning Fleet... 📡</h3></div>;
   if (error) return <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#ef4444' }}><h3>⚠️ {error}</h3></div>;
@@ -82,7 +61,7 @@ function CarBrowsing() {
           </h1>
           <p style={{ color: '#64748b', margin: 0 }}>
             {isFilteredSearch 
-              ? `Showing cars within 40km of your selection. Found ${displayedCars.length} matches.` 
+              ? `Showing cars available at your chosen transit hub terminal. Found ${displayedCars.length} matches.` 
               : `Displaying all ${displayedCars.length} vehicles currently registered in our systems.`}
           </p>
         </div>
@@ -102,15 +81,13 @@ function CarBrowsing() {
         <div style={{ textAlign: 'center', padding: '5rem 0', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🗺️</div>
           <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a' }}>No Vehicles Found</h3>
-          <p style={{ color: '#64748b' }}>There are no operational vehicles available inside this exact perimeter zone.</p>
+          <p style={{ color: '#64748b' }}>There are no operational vehicles available at this transit terminal right now.</p>
           <button onClick={() => navigate('/')} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '0.5rem 1.5rem', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}>Return to Homepage</button>
         </div>
       ) : (
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '2rem' }}>
           {displayedCars.map((car) => {
             const isBookedOut = car.isAvailable === false;
-            
-            // 🟢 FIXED: Safely check if the image is a valid URL or path string. If it's a short symbol/emoji, render it as text icon.
             const isAnActualImageFile = car.image && (car.image.startsWith('http') || car.image.startsWith('/') || car.image.startsWith('data:'));
 
             return (
@@ -144,13 +121,12 @@ function CarBrowsing() {
                 </div>
                 
                 <div style={{ padding: '1.5rem', opacity: isBookedOut ? 0.75 : 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                    <div>
+                  <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                    <div style={{ flex: 1 }}>
                       <h3 style={{ fontSize: '1.3rem', fontWeight: '700', color: '#0f172a', margin: '0 0 0.25rem 0' }}>{car.name}</h3>
                       <span style={{ fontSize: '0.75rem', fontWeight: '700', backgroundColor: '#eff6ff', color: '#2563eb', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>{car.type}</span>
                     </div>
-                    {/* 🟢 FIXED: Forcing calculation order to prioritize your baseline database input price string */}
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ textAlign: 'right', marginLeft: '0.5rem' }}>
                       <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0f172a' }}>₹{car.rentPerDay || car.pricePerDay}</div>
                       <span style={{ fontSize: '0.75rem', color: '#64748b' }}>/ day</span>
                     </div>
@@ -160,19 +136,14 @@ function CarBrowsing() {
                   <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#0f172a' }}>
-                        📍 {car.hub?.name || car.hubName || 'Unassigned Station'}
+                         📍 {car.hub?.name || car.hubName || 'Unassigned Station'}
                       </span>
-                      {car.distanceAway !== null && (
-                        <span style={{ fontSize: '0.85rem', fontWeight: '800', color: car.distanceAway < 5 ? '#16a34a' : '#b45309' }}>
-                          🏁 {car.distanceAway} km away
-                        </span>
-                      )}
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9', fontSize: '0.85rem', color: '#475569' }}>
-                    <span> {car.seats || 5} Seats</span>
-                    <span> {car.fuelType}</span>
+                    <span>💺 {car.seats || 5} Seats</span>
+                    <span>⛽ {car.fuelType}</span>
                   </div>
 
                   {isBookedOut ? (

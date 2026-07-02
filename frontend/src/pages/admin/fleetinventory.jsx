@@ -27,7 +27,7 @@ function ManageCars() {
   return (
     <div style={{ padding: '2rem', fontFamily: 'sans-serif', boxSizing: 'border-box' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>📋 Active Fleet Inventory</h2>
+        <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', margin: 0 }}> Active Fleet Inventory</h2>
         <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>Full analytical ledger overview of all vehicles currently deployed to active hubs.</p>
       </div>
 

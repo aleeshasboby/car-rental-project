@@ -1,3 +1,34 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom Dark Theme Overrides for Google Maps Dropdown */
+.pac-container {
+  background-color: #1a1a1a !important;
+  border: 1px solid #262626 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7) !important;
+  font-family: sans-serif !important;
+  margin-top: 4px !important;
+}
+
+.pac-item {
+  border-top: 1px solid #262626 !important;
+  padding: 0.6rem 1rem !important;
+  color: #a3a3a3 !important; /* Secondary address text color */
+  cursor: pointer;
+}
+
+.pac-item:hover {
+  background-color: #262626 !important;
+}
+
+.pac-item-query {
+  color: #ffffff !important; /* Main location name text color */
+  font-size: 0.95rem !important;
+}
+
+/* Dark mode adjustment for the Google logo watermark */
+.pac-logo:after {
+  filter: invert(1) brightness(0.7) !important;
+}

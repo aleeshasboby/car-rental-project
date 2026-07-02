@@ -68,7 +68,7 @@ function AddCar() {
   return (
     <div style={{ padding: '2rem', maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif', boxSizing: 'border-box' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>✨ Deploy New Fleet Asset</h2>
+        <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', margin: 0 }}> Deploy New Fleet Asset</h2>
         <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>Inject a vehicle profile directly into an operational station layout sector.</p>
       </div>
       

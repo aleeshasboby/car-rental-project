@@ -1,6 +1,7 @@
 // frontend/src/pages/user/home.jsx
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 
 // Haversine formula to compute distance between coordinates in kilometers
 function getDistanceKM(lat1, lon1, lat2, lon2) {
@@ -15,12 +16,20 @@ function getDistanceKM(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// 🌐 REPLACE WITH YOUR SECURED API KEY FROM GOOGLE CLOUD CONSOLE
+const GOOGLE_MAPS_API_KEY = "AIzaSyB8hySfBMvmyATlQK7E-m-CckpEqBxu-9k";
+const LIBRARIES = ['places'];
+
 function Home() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedPlace, setSelectedPlace] = useState(null);
+  const autocompleteRef = useRef(null);
+
+  // Safely registers script tags for Google Maps services dynamically
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: LIBRARIES,
+  });
 
   const regionalHubs = [
     { name: "Kattakada Market Hub, Trivandrum", lat: 8.5033, lng: 77.0852 },
@@ -31,64 +40,53 @@ function Home() {
     { name: "Trivandrum Central Railway Station Hub", lat: 8.4867, lng: 76.9522 }
   ];
 
-  // Triggers live address search when typing
-  const handleInputChange = async (value) => {
-    setSearchQuery(value);
-    if (selectedPlace) setSelectedPlace(null);
-
-    if (value.trim().length < 3) {
-      setSuggestions([]);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Queries global geocoding API filtered specifically for Indian locations
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}&countrycodes=in&limit=5`);
-      const data = await res.json();
-      
-      const mappedResults = data.map(item => ({
-        display_name: item.display_name,
-        lat: parseFloat(item.lat),
-        lng: parseFloat(item.lon)
-      }));
-      setSuggestions(mappedResults);
-    } catch (err) {
-      console.error("Geocoding fetch failed:", err);
-    } finally {
-      setLoading(false);
-    }
+  const onAutocompleteLoad = (autocompleteInstance) => {
+    autocompleteRef.current = autocompleteInstance;
+    // Pinpoints autocomplete context explicitly to Indian cities/addresses
+    autocompleteInstance.setComponentRestrictions({ country: 'in' });
   };
 
-  const processSelection = (place) => {
-    setSearchQuery(place.display_name);
-    setSelectedPlace(place);
-    setSuggestions([]);
+  const handlePlaceChanged = () => {
+    if (autocompleteRef.current !== null) {
+      const place = autocompleteRef.current.getPlace();
+      
+      if (!place.geometry || !place.geometry.location) {
+        alert("Please select a valid location");
+        return;
+      }
 
-    // Filters down your hubs using a 40 km threshold boundary
-    const nearbyHubs = regionalHubs.filter(hub => {
-      const distance = getDistanceKM(place.lat, place.lng, hub.lat, hub.lng);
-      return distance <= 40;
-    });
+      const selectedPlace = {
+        display_name: place.formatted_address || place.name,
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng()
+      };
 
-    if (nearbyHubs.length > 0) {
-      const closestHub = nearbyHubs[0];
-      navigate(`/cars?lat=${closestHub.lat}&lng=${closestHub.lng}&label=${encodeURIComponent(closestHub.name)}`);
-    } else {
-      alert(`We located "${place.display_name.split(',')[0]}", but there are currently no transit hubs within 40 km of this region.`);
+      setSearchQuery(selectedPlace.display_name);
+
+      // Filters down fixed regional hubs using your 40km perimeter zone
+      const nearbyHubs = regionalHubs.filter(hub => {
+        const distance = getDistanceKM(selectedPlace.lat, selectedPlace.lng, hub.lat, hub.lng);
+        return distance <= 40;
+      });
+
+      if (nearbyHubs.length > 0) {
+        const closestHub = nearbyHubs[0];
+        navigate(`/cars?lat=${closestHub.lat}&lng=${closestHub.lng}&label=${encodeURIComponent(closestHub.name)}`);
+      } else {
+        alert(`We located "${selectedPlace.display_name.split(',')[0]}", but there are currently no available cars within 40 km of this region.`);
+      }
     }
   };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (selectedPlace) {
-      processSelection(selectedPlace);
-    } else if (suggestions.length > 0) {
-      processSelection(suggestions[0]);
-    } else {
-      alert("Please enter a valid location and select it from the search results pool.");
+    if (autocompleteRef.current) {
+      handlePlaceChanged();
     }
   };
+
+  if (loadError) return <div style={{ color: '#fff', textAlign: 'center', padding: '3rem' }}><h3>⚠️ Error initialization mapping frameworks.</h3></div>;
+  if (!isLoaded) return <div style={{ color: '#fff', textAlign: 'center', padding: '3rem' }}><h3>Uplinking Google Maps Ecosystem... 🛰️</h3></div>;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#000000', fontFamily: 'sans-serif' }}>
@@ -134,7 +132,7 @@ function Home() {
             maxWidth: '650px',
             margin: '0 auto 3.5rem auto'
           }}>
-            Select your nearest regional transit hub terminal
+            Select your nearest rental hub
           </p>
 
           <div style={{
@@ -155,72 +153,28 @@ function Home() {
               </label>
               
               <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
-                <div style={{ flex: 1, position: 'relative' }}>
-                  <input 
-                    type="text"
-                    placeholder="Type to search..."
-                    value={searchQuery}
-                    onChange={(e) => handleInputChange(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '1.1rem 1.25rem',
-                      borderRadius: '12px',
-                      border: '2px solid #262626',
-                      backgroundColor: '#1a1a1a', 
-                      color: '#ffffff', 
-                      fontSize: '1rem',
-                      fontWeight: '500',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-
-                  {suggestions.length > 0 && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '105%',
-                      left: 0,
-                      right: 0,
-                      backgroundColor: '#1a1a1a', 
-                      borderRadius: '12px',
-                      border: '1px solid #262626',
-                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.7)',
-                      zIndex: 10,
-                      maxHeight: '220px',
-                      overflowY: 'auto',
-                      padding: '0.5rem'
-                    }}>
-                      {suggestions.map((place, idx) => (
-                        <div 
-                          key={idx}
-                          onClick={() => processSelection(place)}
-                          style={{
-                            padding: '0.75rem 1rem',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontSize: '0.9rem',
-                            fontWeight: '500',
-                            color: '#ffffff', 
-                            backgroundColor: 'transparent',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            transition: 'background-color 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.target.style.backgroundColor = '#262626'}
-                          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                        >
-                           📍 {place.display_name}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {loading && (
-                    <div style={{ position: 'absolute', right: '1.25rem', top: '35%', color: '#737373', fontSize: '0.85rem' }}>
-                      Searching...
-                    </div>
-                  )}
+                <div style={{ flex: 1 }}>
+                  {/* Google Places Autocomplete Engine hooks natively into your text field layout */}
+                  <Autocomplete onLoad={onAutocompleteLoad} onPlaceChanged={handlePlaceChanged}>
+                    <input 
+                      type="text"
+                      placeholder="Search location"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '1.1rem 1.25rem',
+                        borderRadius: '12px',
+                        border: '2px solid #262626',
+                        backgroundColor: '#1a1a1a', 
+                        color: '#ffffff', 
+                        fontSize: '1rem',
+                        fontWeight: '500',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </Autocomplete>
                 </div>
 
                 <button 
