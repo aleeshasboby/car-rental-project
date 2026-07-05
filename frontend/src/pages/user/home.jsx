@@ -1,7 +1,5 @@
-// frontend/src/pages/user/home.jsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 
 // Haversine formula to compute distance between coordinates in kilometers
 function getDistanceKM(lat1, lon1, lat2, lon2) {
@@ -16,20 +14,12 @@ function getDistanceKM(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// 🌐 REPLACE WITH YOUR SECURED API KEY FROM GOOGLE CLOUD CONSOLE
-const GOOGLE_MAPS_API_KEY = "AIzaSyB8hySfBMvmyATlQK7E-m-CckpEqBxu-9k";
-const LIBRARIES = ['places'];
-
 function Home() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const autocompleteRef = useRef(null);
-
-  // Safely registers script tags for Google Maps services dynamically
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: LIBRARIES,
-  });
+  const [suggestions, setSuggestions] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
 
   const regionalHubs = [
     { name: "Kattakada Market Hub, Trivandrum", lat: 8.5033, lng: 77.0852 },
@@ -40,53 +30,72 @@ function Home() {
     { name: "Trivandrum Central Railway Station Hub", lat: 8.4867, lng: 76.9522 }
   ];
 
-  const onAutocompleteLoad = (autocompleteInstance) => {
-    autocompleteRef.current = autocompleteInstance;
-    // Pinpoints autocomplete context explicitly to Indian cities/addresses
-    autocompleteInstance.setComponentRestrictions({ country: 'in' });
-  };
-
-  const handlePlaceChanged = () => {
-    if (autocompleteRef.current !== null) {
-      const place = autocompleteRef.current.getPlace();
-      
-      if (!place.geometry || !place.geometry.location) {
-        alert("Please select a valid location");
+  // Fetch location suggestions from OpenStreetMap Nominatim API
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchQuery.trim().length < 3) {
+        setSuggestions([]);
         return;
       }
 
-      const selectedPlace = {
-        display_name: place.formatted_address || place.name,
-        lat: place.geometry.location.lat(),
-        lng: place.geometry.location.lng()
-      };
-
-      setSearchQuery(selectedPlace.display_name);
-
-      // Filters down fixed regional hubs using your 40km perimeter zone
-      const nearbyHubs = regionalHubs.filter(hub => {
-        const distance = getDistanceKM(selectedPlace.lat, selectedPlace.lng, hub.lat, hub.lng);
-        return distance <= 40;
-      });
-
-      if (nearbyHubs.length > 0) {
-        const closestHub = nearbyHubs[0];
-        navigate(`/cars?lat=${closestHub.lat}&lng=${closestHub.lng}&label=${encodeURIComponent(closestHub.name)}`);
-      } else {
-        alert(`We located "${selectedPlace.display_name.split(',')[0]}", but there are currently no available cars within 40 km of this region.`);
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&addressdetails=1&limit=5&countrycodes=in`
+        );
+        const data = await response.json();
+        setSuggestions(data);
+      } catch (error) {
+        console.error("Error fetching location data from OpenStreetMap:", error);
       }
+    }, 400); // 400ms debounce to limit API requests while typing
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
+  // Close the dropdown if clicking anywhere outside of it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectLocation = (locationItem) => {
+    const lat = parseFloat(locationItem.lat);
+    const lon = parseFloat(locationItem.lon);
+    const displayName = locationItem.display_name;
+
+    setSearchQuery(displayName);
+    setShowDropdown(false);
+    processHubSelection(lat, lon, displayName);
+  };
+
+  const processHubSelection = (lat, lng, name) => {
+    // Filters down fixed regional hubs using your 40km perimeter zone
+    const nearbyHubs = regionalHubs.filter(hub => {
+      const distance = getDistanceKM(lat, lng, hub.lat, hub.lng);
+      return distance <= 40;
+    });
+
+    if (nearbyHubs.length > 0) {
+      const closestHub = nearbyHubs[0];
+      navigate(`/cars?lat=${closestHub.lat}&lng=${closestHub.lng}&label=${encodeURIComponent(closestHub.name)}`);
+    } else {
+      alert(`We located "${name.split(',')[0]}", but there are currently no available cars within 40 km of this region.`);
     }
   };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (autocompleteRef.current) {
-      handlePlaceChanged();
+    if (suggestions.length > 0) {
+      handleSelectLocation(suggestions[0]);
+    } else if (searchQuery.trim().length > 0) {
+      alert("Please choose a matching location option from the dropdown menu.");
     }
   };
-
-  if (loadError) return <div style={{ color: '#fff', textAlign: 'center', padding: '3rem' }}><h3>⚠️ Error initialization mapping frameworks.</h3></div>;
-  if (!isLoaded) return <div style={{ color: '#fff', textAlign: 'center', padding: '3rem' }}><h3>Uplinking Google Maps Ecosystem... 🛰️</h3></div>;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#000000', fontFamily: 'sans-serif' }}>
@@ -144,8 +153,9 @@ function Home() {
             textAlign: 'left',
             maxWidth: '700px',
             margin: '0 auto',
-            border: '1px solid #262626'
-          }}>
+            border: '1px solid #262626',
+            position: 'relative'
+          }} ref={dropdownRef}>
             
             <form onSubmit={handleSearchSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -153,28 +163,70 @@ function Home() {
               </label>
               
               <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
-                <div style={{ flex: 1 }}>
-                  {/* Google Places Autocomplete Engine hooks natively into your text field layout */}
-                  <Autocomplete onLoad={onAutocompleteLoad} onPlaceChanged={handlePlaceChanged}>
-                    <input 
-                      type="text"
-                      placeholder="Search location"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '1.1rem 1.25rem',
-                        borderRadius: '12px',
-                        border: '2px solid #262626',
-                        backgroundColor: '#1a1a1a', 
-                        color: '#ffffff', 
-                        fontSize: '1rem',
-                        fontWeight: '500',
-                        outline: 'none',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </Autocomplete>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input 
+                    type="text"
+                    placeholder="Search location"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setShowDropdown(true);
+                    }}
+                    onFocus={() => setShowDropdown(true)}
+                    style={{
+                      width: '100%',
+                      padding: '1.1rem 1.25rem',
+                      borderRadius: '12px',
+                      border: '2px solid #262626',
+                      backgroundColor: '#1a1a1a', 
+                      color: '#ffffff', 
+                      fontSize: '1rem',
+                      fontWeight: '500',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+
+                  {/* CUSTOM OPENSTREETMAP AUTO-SUGGEST DROPDOWN */}
+                  {showDropdown && suggestions.length > 0 && (
+                    <ul style={{
+                      position: 'absolute',
+                      top: '105%',
+                      left: 0,
+                      right: 0,
+                      backgroundColor: '#1a1a1a',
+                      border: '1px solid #262626',
+                      borderRadius: '12px',
+                      listStyle: 'none',
+                      padding: '0.5rem 0',
+                      margin: 0,
+                      maxHeight: '220px',
+                      overflowY: 'auto',
+                      zIndex: 999,
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+                    }}>
+                      {suggestions.map((item, idx) => (
+                        <li 
+                          key={idx}
+                          onClick={() => handleSelectLocation(item)}
+                          style={{
+                            padding: '0.8rem 1.25rem',
+                            color: '#e5e5e5',
+                            cursor: 'pointer',
+                            fontSize: '0.95rem',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            transition: 'background-color 0.15s'
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#262626'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                        >
+                          {item.display_name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <button 
