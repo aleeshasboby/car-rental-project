@@ -12,7 +12,7 @@ import CarBrowsing from './pages/user/carbrowsing.jsx';
 import CarDetails from './pages/user/cardetails.jsx';
 import MyBookings from './pages/user/mybookings.jsx';
 
-// 🟢 NEW: Customer Footer Link Pages
+// NEW: Customer Footer Link Pages
 import Contact from './pages/user/contact.jsx';
 import Terms from './pages/user/terms.jsx';
 
@@ -25,12 +25,12 @@ import ManageUsers from './pages/admin/manageusers.jsx';
 // Public Security Portals
 import Login from './pages/auth/login.jsx';
 import Register from './pages/auth/register.jsx';
+import VerifyEmail from './pages/auth/verify.jsx'; // 👈 1. IMPORT YOUR NEW VERIFICATION PAGE HERE
 
-// 🔒 CUSTOMER TRACK ROUTE GATE GUARD COMPONENT
-// Blocks unauthenticated strangers from accessing private user pages manually via URL injection
+// CUSTOMER TRACK ROUTE GATE GUARD COMPONENT
 function UserProtectedRoute({ auth, children }) {
   if (!auth.isLoggedIn) {
-    alert("Access Denied. Please sign into your account to book vehicles ");
+    alert(" Please sign into your account to book vehicles ");
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -74,6 +74,7 @@ function App() {
       {/* Public Authentication Portals */}
       <Route path="/login" element={<Login setAuth={setAuth} auth={auth} />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/verify" element={<VerifyEmail />} /> {/* 👈 2. ADD THE ROUTE LINK COUPLING HERE */}
 
       {/* UNIFIED USER TRACK */}
       <Route path="/" element={<UserLayout auth={auth} onLogout={handleLogout} />}>
@@ -81,7 +82,7 @@ function App() {
         <Route path="cars" element={<CarBrowsing />} />
         <Route path="car/:id" element={<CarDetails />} /> 
         
-        {/* 🟢 NEW: Public routing endpoints mapped to footer navigation links */}
+        {/* Public routing endpoints mapped to footer navigation links */}
         <Route path="contact" element={<Contact />} />
         <Route path="terms" element={<Terms />} />
         
