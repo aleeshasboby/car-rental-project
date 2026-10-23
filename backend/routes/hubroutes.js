@@ -1,6 +1,7 @@
 // backend/routes/hubroutes.js
 import express from 'express';
 import Hub from '../models/hub.js';
+import { verifyAdmin } from '../middleware/authmiddleware.js';
 const router = express.Router();
 
 /**
@@ -40,7 +41,7 @@ router.get('/', async (req, res) => {
 });
 
 // 2. ADD NEW VEHICLE HUB TERMINAL (Administrative Management Tool)
-router.post('/add', async (req, res) => {
+router.post('/add', verifyAdmin, async (req, res) => {
   try {
     const newHub = new Hub(req.body);
     const savedHub = await newHub.save();

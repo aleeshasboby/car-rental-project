@@ -1,9 +1,12 @@
 // backend/server.js
-import dotenv from 'dotenv';
-dotenv.config({ path: '../.env' }); // 👈 1. THIS MUST RUN FIRST!
+import './config/env.js'; // 👈 1. Loads .env before any other ES module imports execute!
 
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import mongoSanitize from 'express-mongo-sanitize';
+import hpp from 'hpp';
 import connectDB from './config/db.js';
 import carRoutes from './routes/carroutes.js';
 import bookingRoutes from './routes/bookingroutes.js'; 
@@ -15,8 +18,29 @@ const PORT = process.env.PORT || 5000;
 
 connectDB();
 
-app.use(cors());
+// Security headers
+app.use(helmet());
+
+app.use(cors({
+  origin: 'http://localhost:5173',
+}));
 app.use(express.json());
+
+// Rate limiter: 100 requests per 15 minutes per IP
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests from this IP, please try again after 15 minutes.' },
+});
+app.use('/api', apiLimiter);
+
+// Prevent NoSQL injection
+app.use(mongoSanitize());
+
+// Prevent HTTP parameter pollution
+app.use(hpp());
 
 // Link API endpoints
 app.use('/api/auth', authRoutes);

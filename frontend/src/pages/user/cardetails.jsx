@@ -1,32 +1,30 @@
 // frontend/src/pages/user/cardetails.jsx
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { getCarById } from '../../services/carservice.js';
 import { createBooking } from '../../services/rentalservice.js';
 
 function CarDetails({ auth }) {
-  const { id } = useParams(); // Catches the /car/:id variable from the route path
+  const { id } = useParams();
   const navigate = useNavigate();
-  console.log("Captured Vehicle Database ID String from browser URL:", id);
   
   const [car, setCar] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Form Booking Inputs
+  // Form Inputs
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Automatically bind the form email input field to the active logged-in account session
   useEffect(() => {
-    const resolvedEmail = auth?.email || JSON.parse(sessionStorage.getItem('user'))?.email || '';
+    const resolvedEmail = auth?.email || JSON.parse(sessionStorage.getItem('user') || '{}')?.email || '';
     setUserEmail(resolvedEmail);
   }, [auth]);
 
-  // Fetch the target car profile details from MongoDB Atlas on mount
   useEffect(() => {
     const fetchCarProfile = async () => {
       try {
@@ -35,7 +33,7 @@ function CarDetails({ auth }) {
         setCar(data);
       } catch (err) {
         console.error(err);
-        setError("Could not retrieve vehicle information.");
+        setError("Could not retrieve vehicle profile from fleet network.");
       } finally {
         setLoading(false);
       }
@@ -43,165 +41,294 @@ function CarDetails({ auth }) {
     fetchCarProfile();
   }, [id]);
 
-  // CALCULATION ENGINE: Dynamically outputs absolute days & overall total invoice amount
   const calculateTotalInvoice = () => {
     if (!startDate || !endDate || !car) return { days: 0, total: 0 };
     
     const start = new Date(startDate);
     const end = new Date(endDate);
     const differenceInTime = end.getTime() - start.getTime();
-    
-    // Convert time mismatch values safely to total calendar day values
     const days = Math.ceil(differenceInTime / (1000 * 3600 * 24));
     
     if (days <= 0) return { days: 0, total: 0 };
     
-    // 🟢 FIXED: Prioritizing your direct database input price tag for the arithmetic loop
     const operationalPrice = car.rentPerDay !== undefined ? car.rentPerDay : (car.pricePerDay || 0);
     return { days, total: days * operationalPrice };
   };
 
   const { days, total } = calculateTotalInvoice();
 
-  // SUBMISSION LOGIC
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
     if (days <= 0) {
-      alert("Please select a valid end date that is after the start date.");
+      alert("Please select a return date that is after the pickup date.");
       return;
     }
 
     try {
       setSubmitting(true);
-      const token = sessionStorage.getItem('token');
-      
       const payload = {
         car: car._id,
         userEmail: userEmail,
         startDate: startDate,
         endDate: endDate,
-        totalPrice: total
+        totalPrice: total,
       };
 
-      await createBooking(payload, token);
+      await createBooking(payload);
       setBookingSuccess(true);
     } catch (err) {
       console.error("Booking error:", err);
-      alert("Failed to confirm reservation. Ensure backend endpoint parameters match.");
+      alert(err.response?.data?.message || "Failed to confirm reservation. Please sign in and try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '5rem', fontFamily: 'sans-serif', color: '#64748b' }}><h3>Loading fleet asset parameters... ⏳</h3></div>;
-  if (error) return <div style={{ textAlign: 'center', padding: '5rem', fontFamily: 'sans-serif', color: '#ef4444' }}><h3>⚠️ {error}</h3></div>;
-  if (!car) return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-neutral-400 flex flex-col items-center justify-center gap-3">
+        <span className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        <p className="text-sm font-medium">Fetching technical specs and bay telemetry...</p>
+      </div>
+    );
+  }
 
-  // 🟢 FIXED: Safely identify if the string is a valid file link or direct base64 data stream
-  const isAnActualImageFile = car.image && (car.image.startsWith('http') || car.image.startsWith('/') || car.image.startsWith('data:'));
+  if (error || !car) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="text-4xl mb-4">⚠️</div>
+        <h2 className="text-2xl font-bold mb-2">{error || "Vehicle Not Found"}</h2>
+        <p className="text-neutral-400 text-sm mb-6">The vehicle profile requested does not exist or has been decommissioned.</p>
+        <Link to="/cars" className="bg-white text-black font-bold text-sm px-6 py-3 rounded-xl no-underline">
+          Return to Fleet Catalog
+        </Link>
+      </div>
+    );
+  }
+
+  const isAnActualImageFile =
+    car.image &&
+    (car.image.startsWith('http') ||
+      car.image.startsWith('/') ||
+      car.image.startsWith('data:'));
 
   return (
-    <div style={{ minHeight: '90vh', backgroundColor: '#f8fafc', padding: '3rem 2rem', fontFamily: 'sans-serif', boxSizing: 'border-box' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem', alignItems: 'start' }}>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="min-h-screen bg-[#0a0a0a] text-white py-12 px-6"
+    >
+      <div className="max-w-6xl mx-auto">
         
-        {/* LEFT COLUMN: VEHICLE DETAILS DISPLAY CARD */}
-        <div style={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', boxSizing: 'border-box' }}>
-          
-          {/* 🟢 FIXED: Constrains image and prevents text fallback overflow */}
-          <div style={{ backgroundColor: '#f8fafc', borderRadius: '12px', height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem', overflow: 'hidden', padding: '1rem', border: '1px solid #f1f5f9' }}>
-            {isAnActualImageFile ? (
-              <img 
-                src={car.image} 
-                alt={car.name} 
-                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} 
-              />
-            ) : (
-              <div style={{ fontSize: '6rem' }}>
-                {car.image || (car.type?.toLowerCase().includes('suv') ? '🚙' : car.type?.toLowerCase().includes('sedan') ? '🚘' : '🚗')}
-              </div>
-            )}
-          </div>
-
-          <h1 style={{ fontSize: '2.2rem', fontWeight: '800', color: '#0f172a', margin: '0 0 0.5rem 0' }}>{car.name}</h1>
-          <span style={{ fontSize: '0.85rem', fontWeight: '700', backgroundColor: '#eff6ff', color: '#2563eb', padding: '0.3rem 0.7rem', borderRadius: '6px', textTransform: 'uppercase' }}>{car.type}</span>
-          
-          <hr style={{ margin: '1.5rem 0', border: '0', borderTop: '1px solid #f1f5f9' }} />
-          
-          {/* 🟢 FIXED: Replaced raw asterisks markdown with semantic HTML tags */}
-          <p style={{ margin: '0 0 0.75rem 0', color: '#475569', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-             <strong>Garaged at:</strong> {car.hub?.name || car.hubName || 'Main Station'}
-          </p>
-          <p style={{ margin: '0 0 1.5rem 0', color: '#64748b', fontSize: '0.9rem', lineHeight: '1.5' }}>
-            {car.address || 'Operational Station Hub Complex Area'}
-          </p>
-          
-          <div style={{ display: 'flex', gap: '1.5rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
-            <div style={{ minWidth: '80px' }}><span style={{ fontSize: '0.8rem', color: '#64748b', display: 'block' }}>Capacity</span><strong style={{ color: '#0f172a' }}>💺 {car.seats || 5} Seats</strong></div>
-            <div style={{ minWidth: '80px' }}><span style={{ fontSize: '0.8rem', color: '#64748b', display: 'block' }}>Propulsion</span><strong style={{ color: '#0f172a' }}>⛽ {car.fuelType}</strong></div>
-            {/* 🟢 FIXED: Ensuring layout price calculation renders rentPerDay value consistently */}
-            <div style={{ minWidth: '80px' }}><span style={{ fontSize: '0.8rem', color: '#64748b', display: 'block' }}>Rate</span><strong style={{ color: '#2563eb' }}>₹{car.rentPerDay !== undefined ? car.rentPerDay : car.pricePerDay}/day</strong></div>
-          </div>
+        {/* Breadcrumb Navigation */}
+        <div className="flex items-center gap-2 text-xs text-neutral-400 mb-8 font-medium">
+          <Link to="/" className="hover:text-white transition-colors no-underline text-neutral-400">Home</Link>
+          <span>/</span>
+          <Link to="/hubs" className="hover:text-white transition-colors no-underline text-neutral-400">Hubs</Link>
+          <span>/</span>
+          <Link to="/cars" className="hover:text-white transition-colors no-underline text-neutral-400">Fleet</Link>
+          <span>/</span>
+          <span className="text-white truncate">{car.name}</span>
         </div>
 
-        {/* RIGHT COLUMN: BOOKING SCHEDULER TRANSACTIONS FORM */}
-        <div style={{ backgroundColor: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', boxSizing: 'border-box' }}>
-          {bookingSuccess ? (
-            <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}></div>
-              <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.5rem' }}>Booking Confirmed!</h2>
-              <p style={{ color: '#64748b', marginBottom: '2rem', lineHeight: '1.5' }}>Your rental request has been registered in the database engine for <strong>{userEmail}</strong>.</p>
-              <button onClick={() => navigate('/bookings')} style={{ backgroundColor: '#0f172a', color: '#fff', border: 'none', padding: '0.85rem 1.5rem', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', width: '100%' }}>View My Rentals</button>
-            </div>
-          ) : (
-            <form onSubmit={handleBookingSubmit}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0f172a', margin: '0 0 1.5rem 0' }}>Configure Rental Schedule</h2>
-              
-              <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', color: '#475569', marginBottom: '0.5rem' }}>CUSTOMER UPLINK EMAIL</label>
-                <input 
-                  type="email" 
-                  value={userEmail} 
-                  onChange={(e) => setUserEmail(e.target.value)} 
-                  required 
-                  disabled
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box', backgroundColor: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' }} 
+        {/* 2-Column Responsive Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* LEFT: Vehicle Profile Card (7 cols) */}
+          <div className="lg:col-span-7 bg-[#141414] border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/60">
+            
+            {/* Visual Frame */}
+            <div className="relative bg-gradient-to-b from-neutral-900 to-[#141414] rounded-2xl h-72 sm:h-80 flex items-center justify-center p-6 mb-6 overflow-hidden border border-neutral-800/60">
+              {isAnActualImageFile ? (
+                <img 
+                  src={car.image} 
+                  alt={car.name} 
+                  className="max-w-full max-h-full object-contain drop-shadow-2xl" 
                 />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', color: '#475569', marginBottom: '0.5rem' }}>START DATE</label>
-                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', color: '#475569', marginBottom: '0.5rem' }}>END DATE</label>
-                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-                </div>
-              </div>
-
-              {/* DYNAMIC RECEIPT METRICS SUMMARY */}
-              {days > 0 && (
-                <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '1rem', marginBottom: '1.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#166534', marginBottom: '0.5rem' }}>
-                    <span>Duration:</span>
-                    <strong>{days} {days === 1 ? 'Day' : 'Days'}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', color: '#14532d', fontWeight: 'bold', paddingTop: '0.5rem', borderTop: '1px dashed #bbf7d0' }}>
-                    <span>Total Cost:</span>
-                    <span>₹{total.toLocaleString('en-IN')}</span>
-                  </div>
+              ) : (
+                <div className="text-8xl select-none">
+                  {car.image || (car.type?.toLowerCase().includes('suv') ? '🚙' : '🚘')}
                 </div>
               )}
 
-              <button type="submit" disabled={submitting || days <= 0} style={{ width: '100%', padding: '1rem', borderRadius: '8px', border: 'none', backgroundColor: days > 0 ? '#2563eb' : '#cbd5e1', color: '#fff', fontWeight: '700', fontSize: '1rem', cursor: days > 0 ? 'pointer' : 'not-allowed', transition: 'background-color 0.2s' }}>
-                {submitting ? 'Processing Transaction...' : 'Confirm Rental Booking'}
-              </button>
-            </form>
-          )}
+              <span className="absolute top-4 left-4 bg-white/10 backdrop-blur-md border border-white/10 text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
+                {car.type || 'Standard'}
+              </span>
+            </div>
+
+            {/* Title & Brand */}
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest block mb-1">
+                  {car.brand || 'Official CarGo Asset'}
+                </span>
+                <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                  {car.name}
+                </h1>
+              </div>
+
+              <div className="text-right">
+                <div className="text-3xl font-black text-white">
+                  ₹{car.rentPerDay !== undefined ? car.rentPerDay : car.pricePerDay}
+                </div>
+                <span className="text-xs text-neutral-400 font-medium">per calendar day</span>
+              </div>
+            </div>
+
+            {/* Station Garaged Banner */}
+            <div className="bg-neutral-900/80 border border-neutral-800 rounded-2xl p-4 mb-6">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">📍</span>
+                <div>
+                  <div className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Garaged Station Terminal</div>
+                  <div className="text-sm font-semibold text-white">
+                    {car.hub?.name || car.hubName || 'Central Hub Terminal Bay'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Vehicle Specs Grid */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-neutral-900/50 border border-neutral-800/80 rounded-xl p-3 text-center">
+                <span className="text-xs text-neutral-400 block mb-1">Passenger Cap</span>
+                <strong className="text-white text-sm">🪑 {car.seats || 5} Seats</strong>
+              </div>
+              <div className="bg-neutral-900/50 border border-neutral-800/80 rounded-xl p-3 text-center">
+                <span className="text-xs text-neutral-400 block mb-1">Powertrain</span>
+                <strong className="text-white text-sm">⛽ {car.fuelType || 'Hybrid'}</strong>
+              </div>
+              <div className="bg-neutral-900/50 border border-neutral-800/80 rounded-xl p-3 text-center">
+                <span className="text-xs text-neutral-400 block mb-1">Access Method</span>
+                <strong className="text-emerald-400 text-sm">⚡ Smart Key</strong>
+              </div>
+            </div>
+
+          </div>
+
+          {/* RIGHT: Booking Scheduler Transaction Form (5 cols) */}
+          <div className="lg:col-span-5 bg-[#141414] border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/60 sticky top-24">
+            
+            {bookingSuccess ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-emerald-950/80 border border-emerald-800 text-emerald-300 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                  ✓
+                </div>
+                <h2 className="text-2xl font-black text-white mb-2">Reservation Confirmed</h2>
+                <p className="text-neutral-400 text-sm mb-6 leading-relaxed">
+                  Your reservation contract for <strong className="text-white">{car.name}</strong> has been secured for <strong className="text-white">{userEmail}</strong>.
+                </p>
+                <button 
+                  onClick={() => navigate('/bookings')}
+                  className="w-full bg-white hover:bg-neutral-200 text-black font-bold py-3.5 rounded-xl transition-all cursor-pointer border-none shadow-lg shadow-white/10"
+                >
+                  View My Reservations →
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleBookingSubmit} className="flex flex-col gap-5">
+                <div>
+                  <h2 className="text-2xl font-black text-white tracking-tight">Reserve Fleet Asset</h2>
+                  <p className="text-xs text-neutral-400 mt-1">Select your rental period to calculate automated pricing.</p>
+                </div>
+
+                {/* Email Account */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">
+                    Contract Signer Email
+                  </label>
+                  <input 
+                    type="email" 
+                    value={userEmail}
+                    disabled
+                    className="w-full bg-neutral-900 border border-neutral-800 text-neutral-400 text-sm rounded-xl px-4 py-3 cursor-not-allowed outline-none"
+                  />
+                  {!userEmail && (
+                    <p className="text-xs text-amber-400 mt-1">
+                      ⚠️ Please sign in before confirming this reservation.
+                    </p>
+                  )}
+                </div>
+
+                {/* Dates Selection */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">
+                      Pickup Date
+                    </label>
+                    <input 
+                      type="date" 
+                      value={startDate} 
+                      onChange={(e) => setStartDate(e.target.value)} 
+                      min={new Date().toISOString().split('T')[0]}
+                      required
+                      className="w-full bg-neutral-900 border border-neutral-800 text-white text-sm rounded-xl px-3 py-3 outline-none focus:border-white transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">
+                      Return Date
+                    </label>
+                    <input 
+                      type="date" 
+                      value={endDate} 
+                      onChange={(e) => setEndDate(e.target.value)} 
+                      min={startDate || new Date().toISOString().split('T')[0]}
+                      required
+                      className="w-full bg-neutral-900 border border-neutral-800 text-white text-sm rounded-xl px-3 py-3 outline-none focus:border-white transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Dynamic Invoice Ledger */}
+                {days > 0 && (
+                  <div className="bg-neutral-900/90 border border-neutral-800 rounded-2xl p-4 space-y-3">
+                    <div className="flex justify-between text-xs text-neutral-400">
+                      <span>Rental Duration</span>
+                      <strong className="text-white">{days} {days === 1 ? 'Calendar Day' : 'Calendar Days'}</strong>
+                    </div>
+                    <div className="flex justify-between text-xs text-neutral-400">
+                      <span>Base Daily Rate</span>
+                      <strong className="text-white">₹{car.rentPerDay || car.pricePerDay} / day</strong>
+                    </div>
+                    <div className="border-t border-neutral-800 pt-3 flex justify-between items-baseline">
+                      <span className="text-sm font-bold text-white">Estimated Total</span>
+                      <span className="text-2xl font-black text-emerald-400">₹{total.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit Action */}
+                <button 
+                  type="submit" 
+                  disabled={submitting || days <= 0}
+                  className="w-full bg-white hover:bg-neutral-200 text-black font-extrabold text-sm py-4 rounded-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border-none shadow-xl shadow-white/5 flex items-center justify-center gap-2 mt-2"
+                >
+                  {submitting ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                      Authorizing Booking...
+                    </>
+                  ) : days > 0 ? (
+                    `Confirm Reservation • ₹${total.toLocaleString('en-IN')}`
+                  ) : (
+                    'Select Pickup & Return Dates'
+                  )}
+                </button>
+
+                <p className="text-[11px] text-neutral-500 text-center">
+                  Free cancellation up to 6 hours before scheduled pickup time.
+                </p>
+              </form>
+            )}
+
+          </div>
+
         </div>
 
       </div>
-    </div>
+    </motion.div>
   );
 }
 

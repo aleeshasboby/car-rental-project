@@ -1,12 +1,15 @@
 // src/pages/auth/login.jsx
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom'; // 🟢 Added useLocation
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { loginUser } from '../../services/authservice.js';
+import Button from '../../components/common/button';
+import Input from '../../components/common/input';
 
 function Login({ setAuth }) {
   const navigate = useNavigate();
-  const location = useLocation(); // 🟢 Read current state data passed from navigation gates
-  
+  const location = useLocation();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -35,8 +38,6 @@ function Login({ setAuth }) {
       if (data.user.role === 'admin') {
         navigate('/admin/dashboard');
       } else {
-        // 🟢 DYNAMIC REDIRECT GATEWAY:
-        // Check if there's a memory destination saved. If not, fallback to the homepage ('/').
         const destination = location.state?.redirectTo || '/';
         navigate(destination);
       }
@@ -49,68 +50,80 @@ function Login({ setAuth }) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', backgroundColor: '#f8fafc', fontFamily: 'sans-serif' }}>
-      <div style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: '2rem' }}>
-        
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a' }}>Sign in to CarGo</h2>
-          <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-            Enter your email and password to log into your account.
+    <motion.div 
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="min-h-screen flex flex-col justify-center items-center bg-[#0a0a0a] text-white px-6 py-12 font-sans selection:bg-white/20"
+    >
+      <div className="max-w-[420px] w-full mx-auto">
+
+        {/* Brand Header */}
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-2 text-2xl font-black text-white no-underline mb-4">
+            <span>🚗</span>
+            <span>CarGo</span>
+          </Link>
+          <h2 className="text-3xl font-black text-white tracking-tight">Access Portal</h2>
+          <p className="text-neutral-400 text-sm mt-1.5">
+            Sign in to manage active reservations and access vehicle keys.
           </p>
         </div>
 
-        <div style={{ backgroundColor: '#fff', padding: '2rem', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}>
-          
+        {/* Card */}
+        <div className="bg-[#141414] p-8 rounded-3xl border border-neutral-800 shadow-2xl shadow-black/80">
+
           {error && (
-            <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2', color: '#ef4444', padding: '0.75rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600', marginBottom: '1.25rem', textAlign: 'center' }}>
+            <div className="bg-red-950/60 border border-red-800 text-red-300 px-4 py-3 rounded-xl text-xs font-semibold mb-6 text-center">
               ⚠️ {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '0.35rem' }}>Email Address</label>
-              <input 
-                type="email" 
-                required 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                disabled={loading}
-                style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', boxSizing: 'border-box' }} 
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '0.35rem' }}>Password</label>
-              <input 
-                type="password" 
-                required 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                disabled={loading}
-                style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', boxSizing: 'border-box' }} 
-              />
-            </div>
-
-            <button 
-              type="submit" 
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <Input
+              label="Email Address"
+              type="email"
+              name="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
               disabled={loading}
-              style={{ width: '100%', backgroundColor: loading ? '#93c5fd' : '#2563eb', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '6px', fontSize: '0.9rem', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '0.5rem' }}
-            >
+            />
+
+            <Input
+              label="Password"
+              type="password"
+              name="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              disabled={loading}
+            />
+
+            <Button type="submit" variant="accent" fullWidth disabled={loading}>
               {loading ? 'Authenticating...' : 'Sign In'}
-            </button>
+            </Button>
           </form>
-          
-          <p style={{ textAlign: 'center', fontSize: '0.8rem', color: '#64748b', marginTop: '1.5rem', marginBottom: '0' }}>
-            Don't have an account? <Link to="/register" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>Register</Link>
+
+          <p className="text-center text-xs text-neutral-400 mt-6 mb-0">
+            Don't have an account yet?{' '}
+            <Link to="/register" className="text-white font-bold no-underline hover:underline ml-1">
+              Create an account
+            </Link>
           </p>
         </div>
 
+        {/* Back Link */}
+        <div className="text-center mt-6">
+          <Link to="/" className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors no-underline">
+            ← Return to Homepage
+          </Link>
+        </div>
+
       </div>
-    </div>
+    </motion.div>
   );
 }
 

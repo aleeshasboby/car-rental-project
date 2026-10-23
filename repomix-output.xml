@@ -138,268 +138,6 @@ README.md
 <files>
 This section contains the contents of the repository's files.
 
-<file path="backend/utils/mailer.js">
-// backend/utils/mailer.js
-import nodemailer from 'nodemailer';
-
-// Reads SMTP credentials from your .env file (see .env.example / README notes).
-// Works with Gmail SMTP, SendGrid SMTP, Mailtrap, Resend SMTP, etc. —
-// just point these vars at whichever provider you use.
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: Number(process.env.SMTP_PORT) === 465, // true for 465, false for other ports
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
-export async function sendVerificationEmail(toEmail, verificationUrl) {
-  const fromAddress = process.env.EMAIL_FROM || process.env.SMTP_USER;
-
-  await transporter.sendMail({
-    from: `"CarGo" <${fromAddress}>`,
-    to: toEmail,
-    subject: 'Verify Your CarGo Account',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
-        <h2>Welcome to CarGo!</h2>
-        <p>Please confirm this is your email address by clicking the button below:</p>
-        <p style="margin: 24px 0;">
-          <a href="${verificationUrl}"
-             style="background:#2563eb;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;">
-            Verify My Email
-          </a>
-        </p>
-        <p>Or copy and paste this link into your browser:</p>
-        <p style="word-break: break-all; color:#555;">${verificationUrl}</p>
-        <p style="color:#999;font-size:12px;">This link expires in 24 hours. If you didn't create a CarGo account, you can ignore this email.</p>
-      </div>
-    `,
-  });
-}
-</file>
-
-<file path="backend/utils/validators.js">
-// backend/utils/validators.js
-import validator from 'validator';
-import dns from 'dns';
-
-/**
- * Password rule: at least 8 characters, containing at least
- * one letter, one number, and one special character.
- * (This is checked on both frontend and backend — frontend is
- * just for UX, backend is the real gate.)
- */
-const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
-
-export function isPasswordStrong(password) {
-  if (typeof password !== 'string') return false;
-  return PASSWORD_REGEX.test(password);
-}
-
-export function passwordRequirementsMessage() {
-  return 'Password must be at least 8 characters long and include a letter, a number, and a special character (e.g. !@#$%).';
-}
-
-/**
- * Checks that an email is well-formed AND that its domain actually
- * has mail servers configured (MX records). This catches typos and
- * made-up domains (e.g. "test@fakemail123.com") without needing a
- * paid email-verification API.
- *
- * NOTE: This confirms the domain can receive mail — it cannot
- * confirm the specific mailbox exists (that requires either a paid
- * verification API like ZeroBounce/AbstractAPI, or an SMTP handshake,
- * which most mail servers block/throttle for anti-spam reasons).
- * The strongest real-world guarantee is still: send a verification
- * link and require the user to click it (which this app already does
- * via authroutes.js — the missing piece was actually sending the email,
- * which mailer.js now handles).
- */
-export async function isEmailDeliverable(email) {
-  if (!validator.isEmail(email)) {
-    return { valid: false, reason: 'Email address is not in a valid format.' };
-  }
-
-  const domain = email.split('@')[1];
-
-  try {
-    const mxRecords = await dns.promises.resolveMx(domain);
-    if (!mxRecords || mxRecords.length === 0) {
-      return { valid: false, reason: 'This email domain cannot receive mail (no mail servers found).' };
-    }
-    return { valid: true };
-  } catch (err) {
-    // ENOTFOUND / ENODATA means the domain doesn't exist or has no mail setup
-    return { valid: false, reason: 'This email domain does not exist or cannot receive mail.' };
-  }
-}
-</file>
-
-<file path="backend/backend-package.json">
-{
-  "type": "module",
-  "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.7.1",
-    "nodemailer": "^6.9.16",
-    "validator": "^13.12.0"
-  }
-}
-</file>
-
-<file path="backend/test-email.js">
-// test-email.js
-// Run this directly to test your SMTP setup, isolated from the rest of the app.
-// Usage: node test-email.js
-//
-// Place this file in your backend/ folder (same level as server.js) and run it from there.
-
-import dotenv from 'dotenv';
-dotenv.config({ path: '../.env' }); // adjust path if your .env is elsewhere
-
-import nodemailer from 'nodemailer';
-
-console.log('--- Checking loaded env vars ---');
-console.log('SMTP_HOST:', process.env.SMTP_HOST);
-console.log('SMTP_PORT:', process.env.SMTP_PORT);
-console.log('SMTP_USER:', process.env.SMTP_USER);
-console.log('SMTP_PASS:', process.env.SMTP_PASS ? '(set, length ' + process.env.SMTP_PASS.length + ')' : '(MISSING)');
-console.log('EMAIL_FROM:', process.env.EMAIL_FROM);
-console.log('--------------------------------\n');
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: Number(process.env.SMTP_PORT) === 465,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
-try {
-  console.log('Verifying SMTP connection...');
-  await transporter.verify();
-  console.log('✅ SMTP connection verified successfully!\n');
-
-  console.log('Attempting to send a test email to yourself...');
-  const info = await transporter.sendMail({
-    from: `"CarGo Test" <${process.env.EMAIL_FROM || process.env.SMTP_USER}>`,
-    to: process.env.SMTP_USER, // sends to yourself for testing
-    subject: 'CarGo SMTP Test',
-    text: 'If you got this, your SMTP setup works!',
-  });
-
-  console.log('✅ Email sent successfully!');
-  console.log('Message ID:', info.messageId);
-} catch (err) {
-  console.error('\n❌ FULL ERROR DETAILS:');
-  console.error(err);
-}
-</file>
-
-<file path="frontend/src/pages/auth/verify.jsx">
-// frontend/src/pages/auth/verify.jsx
-import React, { useEffect, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import axios from 'axios';
-
-function VerifyEmail() {
-  const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState('verifying'); // 'verifying' | 'success' | 'error'
-  const [message, setMessage] = useState('');
-
-  useEffect(() => {
-    const verifyToken = async () => {
-      // 1. Extract the secure token string out of the browser's address bar URL
-      const token = searchParams.get('token');
-
-      if (!token) {
-        setStatus('error');
-        setMessage('Verification token is missing from this link.');
-        return;
-      }
-
-      try {
-        // 2. Ping your custom Express backend endpoint with the token
-        const response = await axios.get(`http://localhost:5000/api/auth/verify-email?token=${token}`);
-        setStatus('success');
-        setMessage(response.data.message);
-      } catch (err) {
-        setStatus('error');
-        setMessage(err.response?.data?.message || 'The verification link is invalid or has expired.');
-      }
-    };
-
-    verifyToken();
-  }, [searchParams]);
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto w-full max-w-md bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-100 text-center">
-        
-        {/* STATE 1: LOADING/VERIFYING */}
-        {status === 'verifying' && (
-          <div>
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <h2 className="mt-4 text-xl font-bold text-gray-900">Verifying your email...</h2>
-            <p className="mt-2 text-sm text-gray-500">Connecting to the server to securely activate your account.</p>
-          </div>
-        )}
-
-        {/* STATE 2: SUCCESS */}
-        {status === 'success' && (
-          <div>
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 text-green-600 font-bold text-xl">
-              ✓
-            </div>
-            <h2 className="mt-4 text-xl font-bold text-gray-900">Account Activated!</h2>
-            <p className="mt-2 text-sm text-green-600 font-medium">{message}</p>
-            <div className="mt-6">
-              <Link to="/login" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition">
-                Proceed to Sign In
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* STATE 3: ERROR / EXPIRED */}
-        {status === 'error' && (
-          <div>
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 text-red-600 font-bold text-xl">
-              !
-            </div>
-            <h2 className="mt-4 text-xl font-bold text-gray-900">Verification Failed</h2>
-            <p className="mt-2 text-sm text-red-600 font-medium">{message}</p>
-            <div className="mt-6">
-              <Link to="/register" className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
-                Try Registering Again
-              </Link>
-            </div>
-          </div>
-        )}
-
-      </div>
-    </div>
-  );
-}
-
-export default VerifyEmail;
-</file>
-
-<file path="gitignore">
-.vercel
-.env
-node_modules
-</file>
-
 <file path="backend/config/db.js">
 // backend/config/db.js
 import mongoose from 'mongoose';
@@ -510,34 +248,6 @@ const Booking = mongoose.model('Booking', bookingSchema);
 export default Booking;
 </file>
 
-<file path="backend/models/user.js">
-// backend/models/user.js
-import mongoose from 'mongoose';
-
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ['user', 'admin'], default: 'user' },
-  
-  // 👇 Add these 3 custom email verification fields
-  isVerified: { 
-    type: Boolean, 
-    default: false 
-  },
-  verificationToken: { 
-    type: String, 
-    default: null 
-  },
-  verificationTokenExpires: { 
-    type: Date, 
-    default: null 
-  }
-}, { timestamps: true });
-
-export default mongoose.model('User', userSchema);
-</file>
-
 <file path="backend/routes/hubroutes.js">
 // backend/routes/hubroutes.js
 import express from 'express';
@@ -593,6 +303,126 @@ router.post('/add', async (req, res) => {
 });
 
 export default router;
+</file>
+
+<file path="backend/utils/mailer.js">
+import nodemailer from 'nodemailer';
+
+console.log('DEBUG SMTP_USER:', process.env.SMTP_USER);
+console.log('DEBUG SMTP_PASS:', process.env.SMTP_PASS ? 'SET' : 'MISSING');
+
+// Hardcoded fallback configuration to ensure it connects directly to Gmail
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: false, // false for port 587
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+  tls: {
+    servername: 'smtp.gmail.com',
+  }
+});
+
+export async function sendVerificationEmail(toEmail, verificationUrl) {
+  // Hardcode your email address here as a fallback
+  const fromAddress = 'aleeshasboby@gmail.com';
+
+  await transporter.sendMail({
+    from: `"CarGo" <${fromAddress}>`,
+    to: toEmail,
+    subject: 'Verify Your CarGo Account',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
+        <h2>Welcome to CarGo!</h2>
+        <p>Please confirm this is your email address by clicking the button below:</p>
+        <p style="margin: 24px 0;">
+          <a href="${verificationUrl}"
+             style="background:#2563eb;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;">
+            Verify My Email
+          </a>
+        </p>
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color:#555;">${verificationUrl}</p>
+        <p style="color:#999;font-size:12px;">This link expires in 24 hours. If you didn't create a CarGo account, you can ignore this email.</p>
+      </div>
+    `,
+  });
+}
+</file>
+
+<file path="backend/utils/validators.js">
+// backend/utils/validators.js
+import validator from 'validator';
+import dns from 'dns';
+
+/**
+ * Password rule: at least 8 characters, containing at least
+ * one letter, one number, and one special character.
+ * (This is checked on both frontend and backend — frontend is
+ * just for UX, backend is the real gate.)
+ */
+const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
+export function isPasswordStrong(password) {
+  if (typeof password !== 'string') return false;
+  return PASSWORD_REGEX.test(password);
+}
+
+export function passwordRequirementsMessage() {
+  return 'Password must be at least 8 characters long and include a letter, a number, and a special character (e.g. !@#$%).';
+}
+
+/**
+ * Checks that an email is well-formed AND that its domain actually
+ * has mail servers configured (MX records). This catches typos and
+ * made-up domains (e.g. "test@fakemail123.com") without needing a
+ * paid email-verification API.
+ *
+ * NOTE: This confirms the domain can receive mail — it cannot
+ * confirm the specific mailbox exists (that requires either a paid
+ * verification API like ZeroBounce/AbstractAPI, or an SMTP handshake,
+ * which most mail servers block/throttle for anti-spam reasons).
+ * The strongest real-world guarantee is still: send a verification
+ * link and require the user to click it (which this app already does
+ * via authroutes.js — the missing piece was actually sending the email,
+ * which mailer.js now handles).
+ */
+export async function isEmailDeliverable(email) {
+  if (!validator.isEmail(email)) {
+    return { valid: false, reason: 'Email address is not in a valid format.' };
+  }
+
+  const domain = email.split('@')[1];
+
+  try {
+    const mxRecords = await dns.promises.resolveMx(domain);
+    if (!mxRecords || mxRecords.length === 0) {
+      return { valid: false, reason: 'This email domain cannot receive mail (no mail servers found).' };
+    }
+    return { valid: true };
+  } catch (err) {
+    // ENOTFOUND / ENODATA means the domain doesn't exist or has no mail setup
+    return { valid: false, reason: 'This email domain does not exist or cannot receive mail.' };
+  }
+}
+</file>
+
+<file path="backend/backend-package.json">
+{
+  "type": "module",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.7.1",
+    "nodemailer": "^6.9.16",
+    "validator": "^13.12.0"
+  }
+}
 </file>
 
 <file path="backend/seed.js">
@@ -716,6 +546,57 @@ const seedDatabase = async () => {
 seedDatabase();
 </file>
 
+<file path="backend/test-email.js">
+// test-email.js
+// Run this directly to test your SMTP setup, isolated from the rest of the app.
+// Usage: node test-email.js
+//
+// Place this file in your backend/ folder (same level as server.js) and run it from there.
+
+import dotenv from 'dotenv';
+dotenv.config({ path: '../.env' }); // adjust path if your .env is elsewhere
+
+import nodemailer from 'nodemailer';
+
+console.log('--- Checking loaded env vars ---');
+console.log('SMTP_HOST:', process.env.SMTP_HOST);
+console.log('SMTP_PORT:', process.env.SMTP_PORT);
+console.log('SMTP_USER:', process.env.SMTP_USER);
+console.log('SMTP_PASS:', process.env.SMTP_PASS ? '(set, length ' + process.env.SMTP_PASS.length + ')' : '(MISSING)');
+console.log('EMAIL_FROM:', process.env.EMAIL_FROM);
+console.log('--------------------------------\n');
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: Number(process.env.SMTP_PORT) === 465,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+try {
+  console.log('Verifying SMTP connection...');
+  await transporter.verify();
+  console.log('✅ SMTP connection verified successfully!\n');
+
+  console.log('Attempting to send a test email to yourself...');
+  const info = await transporter.sendMail({
+    from: `"CarGo Test" <${process.env.EMAIL_FROM || process.env.SMTP_USER}>`,
+    to: process.env.SMTP_USER, // sends to yourself for testing
+    subject: 'CarGo SMTP Test',
+    text: 'If you got this, your SMTP setup works!',
+  });
+
+  console.log('✅ Email sent successfully!');
+  console.log('Message ID:', info.messageId);
+} catch (err) {
+  console.error('\n❌ FULL ERROR DETAILS:');
+  console.error(err);
+}
+</file>
+
 <file path="frontend/dist/assets/index-De1mwsuA.js">
 function Ud(e,t){for(var n=0;n<t.length;n++){const r=t[n];if(typeof r!="string"&&!Array.isArray(r)){for(const l in r)if(l!=="default"&&!(l in e)){const o=Object.getOwnPropertyDescriptor(r,l);o&&Object.defineProperty(e,l,o.get?o:{enumerable:!0,get:()=>r[l]})}}}return Object.freeze(Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}))}(function(){const t=document.createElement("link").relList;if(t&&t.supports&&t.supports("modulepreload"))return;for(const l of document.querySelectorAll('link[rel="modulepreload"]'))r(l);new MutationObserver(l=>{for(const o of l)if(o.type==="childList")for(const i of o.addedNodes)i.tagName==="LINK"&&i.rel==="modulepreload"&&r(i)}).observe(document,{childList:!0,subtree:!0});function n(l){const o={};return l.integrity&&(o.integrity=l.integrity),l.referrerPolicy&&(o.referrerPolicy=l.referrerPolicy),l.crossOrigin==="use-credentials"?o.credentials="include":l.crossOrigin==="anonymous"?o.credentials="omit":o.credentials="same-origin",o}function r(l){if(l.ep)return;l.ep=!0;const o=n(l);fetch(l.href,o)}})();function Md(e){return e&&e.__esModule&&Object.prototype.hasOwnProperty.call(e,"default")?e.default:e}var Wa={exports:{}},U={};/**
  * @license React
@@ -818,11 +699,104 @@ Error generating stack: `+o.message+`
 </file>
 
 <file path="frontend/src/components/common/button.jsx">
+// frontend/src/components/common/button.jsx
+import React from 'react';
 
+const variantStyles = {
+  primary: 'bg-primary text-white hover:bg-slate-800 disabled:bg-slate-400',
+  accent: 'bg-accent text-white hover:bg-blue-700 disabled:bg-blue-300',
+  outline: 'bg-transparent border border-border text-primary hover:bg-background disabled:text-muted',
+  danger: 'bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300',
+};
+
+const sizeStyles = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-base',
+  lg: 'px-6 py-3 text-lg',
+};
+
+function Button({
+  children,
+  variant = 'primary',
+  size = 'md',
+  fullWidth = false,
+  disabled = false,
+  type = 'button',
+  onClick,
+  className = '',
+  ...rest
+}) {
+  return (
+    <button
+      type={type}
+      disabled={disabled}
+      onClick={onClick}
+      className={`
+        ${variantStyles[variant]}
+        ${sizeStyles[size]}
+        ${fullWidth ? 'w-full' : ''}
+        rounded-lg font-semibold transition-colors duration-150
+        disabled:cursor-not-allowed
+        ${className}
+      `}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+}
+
+export default Button;
 </file>
 
 <file path="frontend/src/components/common/input.jsx">
+// frontend/src/components/common/input.jsx
+import React from 'react';
 
+function Input({
+  label,
+  type = 'text',
+  name,
+  value,
+  onChange,
+  placeholder = '',
+  error = '',
+  required = false,
+  className = '',
+  ...rest
+}) {
+  return (
+    <div className="w-full mb-4">
+      {label && (
+        <label htmlFor={name} className="block mb-1.5 text-sm font-medium text-primary">
+          {label}
+          {required && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+      )}
+      <input
+        id={name}
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required={required}
+        className={`
+          w-full px-3.5 py-2.5 rounded-lg border
+          ${error ? 'border-red-500 focus:ring-red-200' : 'border-border focus:ring-blue-100'}
+          text-primary placeholder:text-muted
+          focus:outline-none focus:ring-2 focus:border-accent
+          transition-colors duration-150
+          ${className}
+        `}
+        {...rest}
+      />
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+export default Input;
 </file>
 
 <file path="frontend/src/components/common/spinner.jsx">
@@ -851,6 +825,95 @@ Error generating stack: `+o.message+`
 
 <file path="frontend/src/hooks/uselocalstorage.jsx">
 
+</file>
+
+<file path="frontend/src/pages/auth/verify.jsx">
+// frontend/src/pages/auth/verify.jsx
+import React, { useEffect, useState } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
+import axios from 'axios';
+
+function VerifyEmail() {
+  const [searchParams] = useSearchParams();
+  const [status, setStatus] = useState('verifying'); // 'verifying' | 'success' | 'error'
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    const verifyToken = async () => {
+      // 1. Extract the secure token string out of the browser's address bar URL
+      const token = searchParams.get('token');
+
+      if (!token) {
+        setStatus('error');
+        setMessage('Verification token is missing from this link.');
+        return;
+      }
+
+      try {
+        // 2. Ping your custom Express backend endpoint with the token
+        const response = await axios.get(`http://localhost:5000/api/auth/verify-email?token=${token}`);
+        setStatus('success');
+        setMessage(response.data.message);
+      } catch (err) {
+        setStatus('error');
+        setMessage(err.response?.data?.message || 'The verification link is invalid or has expired.');
+      }
+    };
+
+    verifyToken();
+  }, [searchParams]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto w-full max-w-md bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-100 text-center">
+        
+        {/* STATE 1: LOADING/VERIFYING */}
+        {status === 'verifying' && (
+          <div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <h2 className="mt-4 text-xl font-bold text-gray-900">Verifying your email...</h2>
+            <p className="mt-2 text-sm text-gray-500">Connecting to the server to securely activate your account.</p>
+          </div>
+        )}
+
+        {/* STATE 2: SUCCESS */}
+        {status === 'success' && (
+          <div>
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 text-green-600 font-bold text-xl">
+              ✓
+            </div>
+            <h2 className="mt-4 text-xl font-bold text-gray-900">Account Activated!</h2>
+            <p className="mt-2 text-sm text-green-600 font-medium">{message}</p>
+            <div className="mt-6">
+              <Link to="/login" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition">
+                Proceed to Sign In
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* STATE 3: ERROR / EXPIRED */}
+        {status === 'error' && (
+          <div>
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 text-red-600 font-bold text-xl">
+              !
+            </div>
+            <h2 className="mt-4 text-xl font-bold text-gray-900">Verification Failed</h2>
+            <p className="mt-2 text-sm text-red-600 font-medium">{message}</p>
+            <div className="mt-6">
+              <Link to="/register" className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                Try Registering Again
+              </Link>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+export default VerifyEmail;
 </file>
 
 <file path="frontend/src/pages/user/contact.jsx">
@@ -955,6 +1018,12 @@ export default Terms;
 .vercel
 </file>
 
+<file path="gitignore">
+.vercel
+.env
+node_modules
+</file>
+
 <file path="backend/controllers/bookingcontroller.js">
 // backend/controllers/bookingcontroller.js
 import Booking from '../models/booking.js';
@@ -1031,6 +1100,138 @@ const hubSchema = new mongoose.Schema({
 export default mongoose.model('Hub', hubSchema);
 </file>
 
+<file path="backend/models/user.js">
+// backend/models/user.js
+import mongoose from 'mongoose';
+
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  
+  // 👇 Add these 3 custom email verification fields
+  isVerified: { 
+    type: Boolean, 
+    default: false 
+  },
+  verificationToken: { 
+    type: String, 
+    default: null 
+  },
+  verificationTokenExpires: { 
+    type: Date, 
+    default: null 
+  }
+}, { timestamps: true });
+
+export default mongoose.model('User', userSchema);
+</file>
+
+<file path="backend/routes/bookingroutes.js">
+// backend/routes/bookingroutes.js
+import express from 'express';
+import { 
+  createBooking, 
+  getBookingsByEmail, 
+  getAllBookings, 
+  updateBookingStatus } from '../controllers/bookingcontroller.js';
+
+const router = express.Router();
+
+router.post('/create', createBooking);
+router.get('/all', getAllBookings);
+router.get('/:email', getBookingsByEmail);
+
+router.patch('/:id/status', updateBookingStatus);
+
+export default router;
+</file>
+
+<file path="frontend/src/services/authservice.js">
+// frontend/src/services/authservice.js
+import api from './api.js';
+
+export const loginUser = async (email, password) => {
+  const response = await api.post('auth/login', { email, password });
+  
+  if (response.data.token) {
+    // 🟢 Changed from localStorage to sessionStorage for temporary sessions
+    sessionStorage.setItem('token', response.data.token);
+    sessionStorage.setItem('user', JSON.stringify(response.data.user));
+  }
+  
+  return response.data;
+};
+
+export const registerUser = async (name, email, password) => {
+  const response = await api.post('auth/register', { name, email, password });
+  return response.data;
+};
+
+export const logoutUser = () => {
+  // 🟢 Wipe sessionStorage on explicit logout
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('user');
+};
+</file>
+
+<file path="frontend/postcss.config.js">
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+</file>
+
+<file path="frontend/tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        primary: '#0f172a',      // your current dark navy (used in navbar, admin sidebar)
+        surface: '#ffffff',       // card/white backgrounds
+        background: '#f8fafc',    // page background (light gray)
+        muted: '#64748b',         // secondary text
+        border: '#e2e8f0',
+        accent: '#2563eb',        // pick your brand color here
+      },
+    },
+  },
+  plugins: [],
+}
+</file>
+
+<file path="backend/models/car.js">
+// backend/models/car.js
+import mongoose from 'mongoose';
+
+const carSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  brand: { type: String, required: true },
+  type: { type: String, required: true },       
+  fuelType: { type: String, required: true },   
+  rentPerDay: { type: Number, required: true },
+  image: { type: String, required: true },
+  isAvailable: { type: Boolean, default: true },
+  
+  hub: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Hub',     required: true 
+  }
+}, { 
+  timestamps: true,
+  collection: 'cars' });
+
+export default mongoose.model('Car', carSchema);
+</file>
+
 <file path="backend/routes/authroutes.js">
 // backend/routes/authroutes.js
 import express from 'express';
@@ -1096,13 +1297,9 @@ router.post('/register', async (req, res) => {
     try {
       await sendVerificationEmail(email, verificationUrl);
     } catch (mailErr) {
-      // 👇 ADD THESE LINES TEMPORARILY TO SEE THE REAL ERROR
-      console.log('=============== REAL EMAIL ERROR ===============');
-      console.error(mailErr);
-      console.log('================================================');
       
-      return res.status(201).json({
-        message: 'Account created, but the verification email could not be sent right now. Please contact support or try registering again shortly.'
+      return res.status(500).json({
+        message: `Email Error: ${mailErr.message || mailErr}`
       });
     }
 
@@ -1192,117 +1389,6 @@ router.post('/login', async (req, res) => {
 });
 
 export default router;
-</file>
-
-<file path="backend/routes/bookingroutes.js">
-// backend/routes/bookingroutes.js
-import express from 'express';
-import { 
-  createBooking, 
-  getBookingsByEmail, 
-  getAllBookings, 
-  updateBookingStatus } from '../controllers/bookingcontroller.js';
-
-const router = express.Router();
-
-router.post('/create', createBooking);
-router.get('/all', getAllBookings);
-router.get('/:email', getBookingsByEmail);
-
-router.patch('/:id/status', updateBookingStatus);
-
-export default router;
-</file>
-
-<file path="backend/package.json">
-{
-  "type": "module",
-  "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.7.1",
-    "nodemailer": "^9.0.3",
-    "validator": "^13.15.35"
-  }
-}
-</file>
-
-<file path="frontend/src/services/authservice.js">
-// frontend/src/services/authservice.js
-import api from './api.js';
-
-export const loginUser = async (email, password) => {
-  const response = await api.post('auth/login', { email, password });
-  
-  if (response.data.token) {
-    // 🟢 Changed from localStorage to sessionStorage for temporary sessions
-    sessionStorage.setItem('token', response.data.token);
-    sessionStorage.setItem('user', JSON.stringify(response.data.user));
-  }
-  
-  return response.data;
-};
-
-export const registerUser = async (name, email, password) => {
-  const response = await api.post('auth/register', { name, email, password });
-  return response.data;
-};
-
-export const logoutUser = () => {
-  // 🟢 Wipe sessionStorage on explicit logout
-  sessionStorage.removeItem('token');
-  sessionStorage.removeItem('user');
-};
-</file>
-
-<file path="frontend/postcss.config.js">
-export default {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-}
-</file>
-
-<file path="frontend/tailwind.config.js">
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-}
-</file>
-
-<file path="backend/models/car.js">
-// backend/models/car.js
-import mongoose from 'mongoose';
-
-const carSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  brand: { type: String, required: true },
-  type: { type: String, required: true },       
-  fuelType: { type: String, required: true },   
-  rentPerDay: { type: Number, required: true },
-  image: { type: String, required: true },
-  isAvailable: { type: Boolean, default: true },
-  
-  hub: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Hub',     required: true 
-  }
-}, { 
-  timestamps: true,
-  collection: 'cars' });
-
-export default mongoose.model('Car', carSchema);
 </file>
 
 <file path="backend/routes/carroutes.js">
@@ -1395,6 +1481,22 @@ router.put('/management/users/:id/role', verifyAdmin, async (req, res) => {
 });
 
 export default router;
+</file>
+
+<file path="backend/package.json">
+{
+  "type": "module",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.7.1",
+    "nodemailer": "^9.0.3",
+    "validator": "^13.15.35"
+  }
+}
 </file>
 
 <file path="frontend/src/pages/admin/fleetinventory.jsx">
@@ -1542,8 +1644,8 @@ export const updateUserRole = async (userId, newRole) => {
 
 /* Custom Dark Theme Overrides for Google Maps Dropdown */
 .pac-container {
-  background-color: #1a1a1a !important;
-  border: 1px solid #262626 !important;
+  background-color: #000000 !important;
+  border: 1px solid #010101 !important;
   border-radius: 12px !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7) !important;
   font-family: sans-serif !important;
@@ -1590,89 +1692,54 @@ export const updateUserRole = async (userId, newRole) => {
 </html>
 </file>
 
-<file path="backend/server.js">
-// backend/server.js
-import dotenv from 'dotenv';
-dotenv.config({ path: '../.env' }); // 👈 1. THIS MUST RUN FIRST!
-
-import express from 'express';
-import cors from 'cors';
-import connectDB from './config/db.js';
-import carRoutes from './routes/carroutes.js';
-import bookingRoutes from './routes/bookingroutes.js'; 
-import authRoutes from './routes/authroutes.js'; // 👈 2. Safe to load now!
-import hubRoutes from './routes/hubroutes.js';
-
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-connectDB();
-
-app.use(cors());
-app.use(express.json());
-
-// Link API endpoints
-app.use('/api/auth', authRoutes);
-app.use('/api/cars', carRoutes);
-app.use('/api/bookings', bookingRoutes); 
-app.use('/api/hubs', hubRoutes); 
-
-app.get('/', (req, res) => {
-  res.send('CarGo Backend API Server is Live');
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-</file>
-
 <file path="frontend/src/layouts/adminlayout.jsx">
 // src/layouts/adminlayout.jsx
 import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
+import Button from '../components/common/button';
 
 function AdminLayout({ auth, onLogout }) {
   return (
-    <div style={{ display: 'flex', minHeight: 'screen', height: '100vh', fontFamily: 'sans-serif', backgroundColor: '#f8fafc' }}>
-      
+    <div className="flex min-h-screen h-screen font-sans bg-background">
+
       {/* Fixed Left Sidebar Administrative Console */}
-      <aside style={{ width: '260px', backgroundColor: '#0f172a', color: '#fff', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'col', flexDirection: 'column', justifyContent: 'space-between' }}>
+      <aside className="w-[260px] bg-primary text-white p-8 px-6 flex flex-col justify-between">
         <div>
           {/* Dashboard Application Branding */}
-          <div style={{ fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '0.05em', marginBottom: '2.5rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className="text-xl font-bold tracking-wide mb-10 text-sky-400 flex items-center gap-2">
             ⚙️ CarGo Admin
           </div>
-          
+
           {/* Main Control Links Stack */}
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <Link to="/admin/dashboard" style={{ color: '#94a3b8', textDecoration: 'none', padding: '0.75rem 1rem', borderRadius: '6px', fontSize: '0.9rem', fontWeight: '500', display: 'block' }}>
+          <nav className="flex flex-col gap-2">
+            <Link to="/admin/dashboard" className="text-slate-400 no-underline px-4 py-3 rounded-md text-sm font-medium block hover:bg-slate-800 hover:text-white transition-colors">
                Analytics Overview
             </Link>
-            <Link to="/admin/cars" style={{ color: '#94a3b8', textDecoration: 'none', padding: '0.75rem 1rem', borderRadius: '6px', fontSize: '0.9rem', fontWeight: '500', display: 'block' }}>
+            <Link to="/admin/cars" className="text-slate-400 no-underline px-4 py-3 rounded-md text-sm font-medium block hover:bg-slate-800 hover:text-white transition-colors">
                Fleet Inventory
             </Link>
-            <Link to="/admin/rentals" style={{ color: '#94a3b8', textDecoration: 'none', padding: '0.75rem 1rem', borderRadius: '6px', fontSize: '0.9rem', fontWeight: '500', display: 'block' }}>
+            <Link to="/admin/rentals" className="text-slate-400 no-underline px-4 py-3 rounded-md text-sm font-medium block hover:bg-slate-800 hover:text-white transition-colors">
                Rental Ledgers
             </Link>
-            <Link to="/admin/users" style={{ color: '#94a3b8', textDecoration: 'none', padding: '0.75rem 1rem', borderRadius: '6px', fontSize: '0.9rem', fontWeight: '500', display: 'block' }}>
+            <Link to="/admin/users" className="text-slate-400 no-underline px-4 py-3 rounded-md text-sm font-medium block hover:bg-slate-800 hover:text-white transition-colors">
                User Accounts
             </Link>
           </nav>
         </div>
 
         {/* Admin Operational Profile Card */}
-        <div style={{ borderTop: '1px solid #334155', paddingTop: '1.5rem' }}>
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div className="border-t border-slate-700 pt-6">
+          <div className="text-xs text-slate-400 mb-1 overflow-hidden text-ellipsis whitespace-nowrap">
             {auth?.email || 'admin@cargo.com'}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-            <span style={{ backgroundColor: '#ef4444', color: '#fff', fontSize: '0.7rem', fontWeight: 'bold', padding: '0.15rem 0.4rem', borderRadius: '4px', textTransform: 'uppercase' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="bg-red-500 text-white text-[0.7rem] font-bold px-1.5 py-0.5 rounded uppercase">
               Role: {auth?.role || 'admin'}
             </span>
           </div>
-          <button 
+          <button
             onClick={onLogout}
-            style={{ w: '100%', width: '100%', backgroundColor: '#334155', color: '#f8fafc', border: 'none', padding: '0.6rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', transition: 'background 0.2s' }}
+            className="w-full bg-slate-700 text-background border-none py-2.5 rounded-md text-sm font-semibold cursor-pointer transition-colors hover:bg-slate-600"
           >
              Logout
           </button>
@@ -1680,14 +1747,14 @@ function AdminLayout({ auth, onLogout }) {
       </aside>
 
       {/* Main Fluid Target Canvas Area */}
-      <main style={{ flexGrow: 1, overflowY: 'auto', padding: '2rem' }}>
+      <main className="flex-grow overflow-y-auto p-8">
         {/* Top Minimal Bar */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '1px solid #e2e8f0' }}>
-          <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '500' }}>
-            System Environment Status: <strong style={{ color: '#10b981' }}> Operational Live</strong>
+        <div className="flex justify-end mb-8 pb-4 border-b border-border">
+          <span className="text-sm text-muted font-medium">
+            System Environment Status: <strong className="text-emerald-500"> Operational Live</strong>
           </span>
         </div>
-        
+
         {/* Children Sub-routes display window */}
         <Outlet />
       </main>
@@ -1874,6 +1941,42 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 A car rental website where users can browse available cars, rent cars for specific dates, and manage their bookings. 
 
 Checkout the website -> [https://car-rental-5g3xsfypt-aleeshasboby2-4835s-projects.vercel.app/login](https://car-rental-5g3xsfypt-aleeshasboby2-4835s-projects.vercel.app/)
+</file>
+
+<file path="backend/server.js">
+// backend/server.js
+import dotenv from 'dotenv';
+dotenv.config({ path: '../.env' }); // 👈 1. THIS MUST RUN FIRST!
+
+import express from 'express';
+import cors from 'cors';
+import connectDB from './config/db.js';
+import carRoutes from './routes/carroutes.js';
+import bookingRoutes from './routes/bookingroutes.js'; 
+import authRoutes from './routes/authroutes.js'; // 👈 2. Safe to load now!
+import hubRoutes from './routes/hubroutes.js';
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+connectDB();
+
+app.use(cors());
+app.use(express.json());
+
+// Link API endpoints
+app.use('/api/auth', authRoutes);
+app.use('/api/cars', carRoutes);
+app.use('/api/bookings', bookingRoutes); 
+app.use('/api/hubs', hubRoutes); 
+
+app.get('/', (req, res) => {
+  res.send('CarGo Backend API Server is Live');
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 </file>
 
 <file path="frontend/src/components/layout/navbar.jsx">
@@ -2118,13 +2221,15 @@ export default AddCar;
 <file path="frontend/src/pages/auth/login.jsx">
 // src/pages/auth/login.jsx
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom'; // 🟢 Added useLocation
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { loginUser } from '../../services/authservice.js';
+import Button from '../../components/common/button';
+import Input from '../../components/common/input';
 
 function Login({ setAuth }) {
   const navigate = useNavigate();
-  const location = useLocation(); // 🟢 Read current state data passed from navigation gates
-  
+  const location = useLocation();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -2153,8 +2258,6 @@ function Login({ setAuth }) {
       if (data.user.role === 'admin') {
         navigate('/admin/dashboard');
       } else {
-        // 🟢 DYNAMIC REDIRECT GATEWAY:
-        // Check if there's a memory destination saved. If not, fallback to the homepage ('/').
         const destination = location.state?.redirectTo || '/';
         navigate(destination);
       }
@@ -2167,63 +2270,58 @@ function Login({ setAuth }) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', backgroundColor: '#f8fafc', fontFamily: 'sans-serif' }}>
-      <div style={{ maxWidth: '400px', width: '100%', margin: '0 auto', padding: '2rem' }}>
-        
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a' }}>Sign in to CarGo</h2>
-          <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-            Enter your email and password to log into your account.
+    <div className="min-h-screen flex flex-col justify-center bg-background font-sans">
+      <div className="max-w-[400px] w-full mx-auto p-8">
+
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-extrabold text-primary">Sign In</h2>
+          <p className="text-muted text-sm mt-2">
+            Enter your email and password 
           </p>
         </div>
 
-        <div style={{ backgroundColor: '#fff', padding: '2rem', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}>
-          
+        <div className="bg-surface p-8 rounded-xl border border-border shadow-sm">
+
           {error && (
-            <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2', color: '#ef4444', padding: '0.75rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600', marginBottom: '1.25rem', textAlign: 'center' }}>
+            <div className="bg-red-50 border border-red-100 text-red-500 px-3 py-2.5 rounded-md text-sm font-semibold mb-5 text-center">
               ⚠️ {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '0.35rem' }}>Email Address</label>
-              <input 
-                type="email" 
-                required 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                disabled={loading}
-                style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', boxSizing: 'border-box' }} 
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
 
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#334155', marginBottom: '0.35rem' }}>Password</label>
-              <input 
-                type="password" 
-                required 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                disabled={loading}
-                style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem', boxSizing: 'border-box' }} 
-              />
-            </div>
-
-            <button 
-              type="submit" 
+            <Input
+              label="Email Address"
+              type="email"
+              name="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
               disabled={loading}
-              style={{ width: '100%', backgroundColor: loading ? '#93c5fd' : '#2563eb', color: '#fff', border: 'none', padding: '0.75rem', borderRadius: '6px', fontSize: '0.9rem', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', marginTop: '0.5rem' }}
-            >
+            />
+
+            <Input
+              label="Password"
+              type="password"
+              name="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              disabled={loading}
+            />
+
+            <Button type="submit" variant="accent" fullWidth disabled={loading}>
               {loading ? 'Authenticating...' : 'Sign In'}
-            </button>
+            </Button>
           </form>
-          
-          <p style={{ textAlign: 'center', fontSize: '0.8rem', color: '#64748b', marginTop: '1.5rem', marginBottom: '0' }}>
-            Don't have an account? <Link to="/register" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: '600' }}>Register</Link>
+
+          <p className="text-center text-xs text-muted mt-6 mb-0">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-accent font-semibold no-underline">
+              Register
+            </Link>
           </p>
         </div>
 
@@ -2233,169 +2331,6 @@ function Login({ setAuth }) {
 }
 
 export default Login;
-</file>
-
-<file path="frontend/src/pages/auth/register.jsx">
-// frontend/src/pages/auth/register.jsx
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios'; // 👈 1. Swapped out Supabase for Axios
-
-// Same rule enforced on the backend — this is just for instant UX feedback.
-const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
-
-function getPasswordChecks(password) {
-  return {
-    length: password.length >= 8,
-    letter: /[A-Za-z]/.test(password),
-    number: /\d/.test(password),
-    special: /[^A-Za-z\d]/.test(password),
-  };
-}
-
-function Register() {
-  const navigate = useNavigate();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [touchedPassword, setTouchedPassword] = useState(false);
-
-  const passwordChecks = getPasswordChecks(password);
-  const isPasswordStrong = PASSWORD_REGEX.test(password);
-
-  // 2. Custom Registration Handler connecting to your local Express server
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!isPasswordStrong) {
-      setTouchedPassword(true);
-      setError('Please choose a stronger password before continuing.');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // 👈 3. Make a direct network request to your custom backend API
-      const response = await axios.post('http://localhost:5000/api/auth/register', {
-        name,
-        email,
-        password
-      });
-
-      // Show success message from server and route to login
-      alert(response.data.message || 'Registration successful! Please check your email to verify your account.');
-      navigate('/login');
-    } catch (err) {
-      console.error("Registration failure:", err);
-      // Grab error messages generated by your backend routes
-      setError(err.response?.data?.message || "Could not complete signup. Try again later.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto w-full max-w-md">
-        <h2 className="text-center text-3xl font-extrabold text-gray-900">Create your account</h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Already have an account?{' '}
-          <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
-            Sign in
-          </Link>
-        </p>
-      </div>
-
-      <div className="mt-8 sm:mx-auto w-full max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-100">
-
-          {/* DYNAMIC ERROR BADGE */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm font-semibold rounded-md text-center">
-              ⚠️ {error}
-            </div>
-          )}
-
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Full Name</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={loading}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email address</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
-              <p className="mt-1 text-xs text-gray-400">
-                We'll send a verification link here — make sure it's a real inbox you can check.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onBlur={() => setTouchedPassword(true)}
-                disabled={loading}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
-
-              {/* PASSWORD STRENGTH CHECKLIST */}
-              {(touchedPassword || password.length > 0) && (
-                <ul className="mt-2 space-y-1 text-xs">
-                  <li className={passwordChecks.length ? 'text-green-600' : 'text-gray-400'}>
-                    {passwordChecks.length ? '✓' : '○'} At least 8 characters
-                  </li>
-                  <li className={passwordChecks.letter ? 'text-green-600' : 'text-gray-400'}>
-                    {passwordChecks.letter ? '✓' : '○'} Contains a letter
-                  </li>
-                  <li className={passwordChecks.number ? 'text-green-600' : 'text-gray-400'}>
-                    {passwordChecks.number ? '✓' : '○'} Contains a number
-                  </li>
-                  <li className={passwordChecks.special ? 'text-green-600' : 'text-gray-400'}>
-                    {passwordChecks.special ? '✓' : '○'} Contains a special character (!@#$%...)
-                  </li>
-                </ul>
-              )}
-            </div>
-
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition disabled:bg-blue-300"
-              >
-                {loading ? 'Creating Account...' : 'Register Account'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default Register;
 </file>
 
 <file path="frontend/src/services/carservice.js">
@@ -3061,6 +2996,169 @@ function ManageUsers() {
 }
 
 export default ManageUsers;
+</file>
+
+<file path="frontend/src/pages/auth/register.jsx">
+// frontend/src/pages/auth/register.jsx
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios'; // 👈 1. Swapped out Supabase for Axios
+
+// Same rule enforced on the backend — this is just for instant UX feedback.
+const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
+function getPasswordChecks(password) {
+  return {
+    length: password.length >= 8,
+    letter: /[A-Za-z]/.test(password),
+    number: /\d/.test(password),
+    special: /[^A-Za-z\d]/.test(password),
+  };
+}
+
+function Register() {
+  const navigate = useNavigate();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [touchedPassword, setTouchedPassword] = useState(false);
+
+  const passwordChecks = getPasswordChecks(password);
+  const isPasswordStrong = PASSWORD_REGEX.test(password);
+
+  // 2. Custom Registration Handler connecting to your local Express server
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!isPasswordStrong) {
+      setTouchedPassword(true);
+      setError('Please choose a stronger password before continuing.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 👈 3. Make a direct network request to your custom backend API
+      const response = await axios.post('http://localhost:5000/api/auth/register', {
+        name,
+        email,
+        password
+      });
+
+      // Show success message from server and route to login
+      alert(response.data.message || 'Registration successful! Please check your email to verify your account.');
+      navigate('/login');
+    } catch (err) {
+      console.error("Registration failure:", err);
+      // Grab error messages generated by your backend routes
+      setError(err.response?.data?.message || "Could not complete signup. Try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto w-full max-w-md">
+        <h2 className="text-center text-3xl font-extrabold text-gray-900">Create your account</h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Already have an account?{' '}
+          <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            Sign in
+          </Link>
+        </p>
+      </div>
+
+      <div className="mt-8 sm:mx-auto w-full max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-100">
+
+          {/* DYNAMIC ERROR BADGE */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm font-semibold rounded-md text-center">
+              ⚠️ {error}
+            </div>
+          )}
+
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Full Name</label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={loading}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Email address</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                We'll send a verification link here — make sure it's a real inbox you can check.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Password</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onBlur={() => setTouchedPassword(true)}
+                disabled={loading}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+
+              {/* PASSWORD STRENGTH CHECKLIST */}
+              {(touchedPassword || password.length > 0) && (
+                <ul className="mt-2 space-y-1 text-xs">
+                  <li className={passwordChecks.length ? 'text-green-600' : 'text-gray-400'}>
+                    {passwordChecks.length ? '✓' : '○'} At least 8 characters
+                  </li>
+                  <li className={passwordChecks.letter ? 'text-green-600' : 'text-gray-400'}>
+                    {passwordChecks.letter ? '✓' : '○'} Contains a letter
+                  </li>
+                  <li className={passwordChecks.number ? 'text-green-600' : 'text-gray-400'}>
+                    {passwordChecks.number ? '✓' : '○'} Contains a number
+                  </li>
+                  <li className={passwordChecks.special ? 'text-green-600' : 'text-gray-400'}>
+                    {passwordChecks.special ? '✓' : '○'} Contains a special character (!@#$%...)
+                  </li>
+                </ul>
+              )}
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition disabled:bg-blue-300"
+              >
+                {loading ? 'Creating Account...' : 'Register Account'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Register;
 </file>
 
 <file path="frontend/src/pages/user/mybookings.jsx">
@@ -3766,132 +3864,6 @@ function Home() {
 export default Home;
 </file>
 
-<file path="frontend/src/app.jsx">
-// frontend/src/app.jsx
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-
-// Layout Framework Hooks
-import UserLayout from './layouts/userlayout.jsx';
-import AdminLayout from './layouts/adminlayout.jsx';
-
-// Customer View Interfaces
-import Home from './pages/user/home.jsx';
-import CarBrowsing from './pages/user/carbrowsing.jsx';
-import CarDetails from './pages/user/cardetails.jsx';
-import MyBookings from './pages/user/mybookings.jsx';
-
-// NEW: Customer Footer Link Pages
-import Contact from './pages/user/contact.jsx';
-import Terms from './pages/user/terms.jsx';
-
-// Administrative Command Center Pages
-import AddCar from './pages/admin/addcar.jsx'; 
-import ManageCars from './pages/admin/managecars.jsx';
-import ManageRentals from './pages/admin/managerentals.jsx';
-import ManageUsers from './pages/admin/manageusers.jsx';
-
-// Public Security Portals
-import Login from './pages/auth/login.jsx';
-import Register from './pages/auth/register.jsx';
-import VerifyEmail from './pages/auth/verify.jsx'; // 👈 1. IMPORT YOUR NEW VERIFICATION PAGE HERE
-
-// CUSTOMER TRACK ROUTE GATE GUARD COMPONENT
-function UserProtectedRoute({ auth, children }) {
-  if (!auth.isLoggedIn) {
-    alert(" Please sign into your account to book vehicles ");
-    return <Navigate to="/login" replace />;
-  }
-  return children;
-}
-
-function App() {
-  // Global Session State tracking
-  const [auth, setAuth] = useState(() => {
-    const savedUser = sessionStorage.getItem('user');
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      return {
-        isLoggedIn: true,
-        email: parsed.email,
-        role: parsed.role
-      };
-    }
-    
-    return {
-      isLoggedIn: false, 
-      email: '',
-      role: 'user'
-    };
-  });
-
-  useEffect(() => {
-    if (auth.isLoggedIn) {
-      const basicUserData = { email: auth.email, role: auth.role };
-      sessionStorage.setItem('user', JSON.stringify(basicUserData));
-    }
-  }, [auth]);
-
-  const handleLogout = () => {
-    setAuth({ isLoggedIn: false, email: '', role: 'user' });
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
-  };
-
-  return (
-    <Routes>
-      {/* Public Authentication Portals */}
-      <Route path="/login" element={<Login setAuth={setAuth} auth={auth} />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/verify" element={<VerifyEmail />} /> {/* 👈 2. ADD THE ROUTE LINK COUPLING HERE */}
-
-      {/* UNIFIED USER TRACK */}
-      <Route path="/" element={<UserLayout auth={auth} onLogout={handleLogout} />}>
-        <Route index element={<Home auth={auth} />} />
-        <Route path="cars" element={<CarBrowsing />} />
-        <Route path="car/:id" element={<CarDetails />} /> 
-        
-        {/* Public routing endpoints mapped to footer navigation links */}
-        <Route path="contact" element={<Contact />} />
-        <Route path="terms" element={<Terms />} />
-        
-        {/* PROTECTED: Wrapped in user authentication guard component */}
-        <Route 
-          path="bookings" 
-          element={
-            <UserProtectedRoute auth={auth}>
-              <MyBookings auth={auth} />
-            </UserProtectedRoute>
-          } 
-        />
-      </Route>
-
-      {/* ADMINISTRATOR TRACK */}
-      <Route 
-        path="/admin" 
-        element = {
-          auth.isLoggedIn && auth.role === 'admin' ? (
-            <AdminLayout auth={auth} onLogout={handleLogout} />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      >
-        <Route path="dashboard" element={<AddCar />} />
-        <Route path="cars" element={<ManageCars />} />
-        <Route path="rentals" element={<ManageRentals />} />
-        <Route path="users" element={<ManageUsers />} />
-      </Route>
-
-      {/* Catch-All Safety Redirect */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  );
-}
-
-export default App;
-</file>
-
 <file path="frontend/src/pages/user/carbrowsing.jsx">
 // frontend/src/pages/user/carbrowsing.jsx
 import React, { useState, useEffect } from 'react';
@@ -4075,6 +4047,132 @@ function CarBrowsing() {
 }
 
 export default CarBrowsing;
+</file>
+
+<file path="frontend/src/app.jsx">
+// frontend/src/app.jsx
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+
+// Layout Framework Hooks
+import UserLayout from './layouts/userlayout.jsx';
+import AdminLayout from './layouts/adminlayout.jsx';
+
+// Customer View Interfaces
+import Home from './pages/user/home.jsx';
+import CarBrowsing from './pages/user/carbrowsing.jsx';
+import CarDetails from './pages/user/cardetails.jsx';
+import MyBookings from './pages/user/mybookings.jsx';
+
+// NEW: Customer Footer Link Pages
+import Contact from './pages/user/contact.jsx';
+import Terms from './pages/user/terms.jsx';
+
+// Administrative Command Center Pages
+import AddCar from './pages/admin/addcar.jsx'; 
+import ManageCars from './pages/admin/managecars.jsx';
+import ManageRentals from './pages/admin/managerentals.jsx';
+import ManageUsers from './pages/admin/manageusers.jsx';
+
+// Public Security Portals
+import Login from './pages/auth/login.jsx';
+import Register from './pages/auth/register.jsx';
+import VerifyEmail from './pages/auth/verify.jsx'; // 👈 1. IMPORT YOUR NEW VERIFICATION PAGE HERE
+
+// CUSTOMER TRACK ROUTE GATE GUARD COMPONENT
+function UserProtectedRoute({ auth, children }) {
+  if (!auth.isLoggedIn) {
+    alert(" Please sign into your account to book vehicles ");
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+function App() {
+  // Global Session State tracking
+  const [auth, setAuth] = useState(() => {
+    const savedUser = sessionStorage.getItem('user');
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      return {
+        isLoggedIn: true,
+        email: parsed.email,
+        role: parsed.role
+      };
+    }
+    
+    return {
+      isLoggedIn: false, 
+      email: '',
+      role: 'user'
+    };
+  });
+
+  useEffect(() => {
+    if (auth.isLoggedIn) {
+      const basicUserData = { email: auth.email, role: auth.role };
+      sessionStorage.setItem('user', JSON.stringify(basicUserData));
+    }
+  }, [auth]);
+
+  const handleLogout = () => {
+    setAuth({ isLoggedIn: false, email: '', role: 'user' });
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+  };
+
+  return (
+    <Routes>
+      {/* Public Authentication Portals */}
+      <Route path="/login" element={<Login setAuth={setAuth} auth={auth} />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/verify" element={<VerifyEmail />} /> {/* 👈 2. ADD THE ROUTE LINK COUPLING HERE */}
+
+      {/* UNIFIED USER TRACK */}
+      <Route path="/" element={<UserLayout auth={auth} onLogout={handleLogout} />}>
+        <Route index element={<Home auth={auth} />} />
+        <Route path="cars" element={<CarBrowsing />} />
+        <Route path="car/:id" element={<CarDetails />} /> 
+        
+        {/* Public routing endpoints mapped to footer navigation links */}
+        <Route path="contact" element={<Contact />} />
+        <Route path="terms" element={<Terms />} />
+        
+        {/* PROTECTED: Wrapped in user authentication guard component */}
+        <Route 
+          path="bookings" 
+          element={
+            <UserProtectedRoute auth={auth}>
+              <MyBookings auth={auth} />
+            </UserProtectedRoute>
+          } 
+        />
+      </Route>
+
+      {/* ADMINISTRATOR TRACK */}
+      <Route 
+        path="/admin" 
+        element = {
+          auth.isLoggedIn && auth.role === 'admin' ? (
+            <AdminLayout auth={auth} onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      >
+        <Route path="dashboard" element={<AddCar />} />
+        <Route path="cars" element={<ManageCars />} />
+        <Route path="rentals" element={<ManageRentals />} />
+        <Route path="users" element={<ManageUsers />} />
+      </Route>
+
+      {/* Catch-All Safety Redirect */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+export default App;
 </file>
 
 </files>

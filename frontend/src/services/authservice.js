@@ -5,7 +5,7 @@ export const loginUser = async (email, password) => {
   const response = await api.post('auth/login', { email, password });
   
   if (response.data.token) {
-    // 🟢 Changed from localStorage to sessionStorage for temporary sessions
+    // 🟢 Saved to sessionStorage for temporary sessions
     sessionStorage.setItem('token', response.data.token);
     sessionStorage.setItem('user', JSON.stringify(response.data.user));
   }

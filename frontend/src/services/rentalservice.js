@@ -3,36 +3,39 @@ import api from './api.js';
 
 /**
  * Create a new rental booking contract in the database engine
- * @param {Object} bookingData - Payload structure containing carId, userEmail, dates, and totalPrice
+ * @param {Object} bookingData - Payload containing car, userEmail, startDate, endDate, totalPrice
  */
 export const createBooking = async (bookingData) => {
-  // 🟢 ALIGNED: Sends clean POST request matching your controller mapping parameters
   const response = await api.post('/bookings/create', bookingData);
   return response.data;
 };
 
 /**
- * Get all bookings belonging to a specific email context profile
+ * Get all bookings belonging to a specific email
  * @param {string} email - The target lookup user email address string
  */
 export const getUserBookings = async (email) => {
-  // 🟢 ALIGNED: Swapped structural pathing to match your live backend controller's query param expectations
-  const response = await api.get(`/bookings/my-reservations?email=${email}`);
+  const response = await api.get(`/bookings/${encodeURIComponent(email)}`);
   return response.data;
 };
-
-// Add/update this inside frontend/src/services/rentalservice.js
 
 /**
  * Fetches all rental logs across the entire system for administrative review
  */
 export const getAllBookings = async () => {
   try {
-    // 🟢 Ensure this matches your backend admin booking route (usually /bookings or /bookings/all)
-    const response = await api.get('/bookings'); 
+    const response = await api.get('/bookings/all');
     return response.data;
   } catch (error) {
     console.error("Error inside rentalservice.getAllBookings:", error.response?.data || error.message);
     throw error;
   }
+};
+
+/**
+ * Update the status of a specific booking contract
+ */
+export const updateBookingStatus = async (bookingId, status) => {
+  const response = await api.patch(`/bookings/${bookingId}/status`, { status });
+  return response.data;
 };

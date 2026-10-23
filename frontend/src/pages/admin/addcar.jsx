@@ -5,6 +5,7 @@ import { addCar, getAllHubs } from '../../services/carservice.js';
 function AddCar() {
   const [hubs, setHubs] = useState([]);
   const [loadingHubs, setLoadingHubs] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '', 
@@ -23,14 +24,11 @@ function AddCar() {
         if (Array.isArray(hubList)) {
           setHubs(hubList);
           if (hubList.length > 0) {
-            setFormData(prev => ({ ...prev, hub: hubList[0]._id }));
+            setFormData((prev) => ({ ...prev, hub: hubList[0]._id }));
           }
         }
       } catch (err) {
         console.error("Hub synchronization tracking error:", err);
-        if (err.response) {
-          alert(`Server Error (${err.response.status}): Failed to locate active rental station hubs.`);
-        }
       } finally {
         setLoadingHubs(false);
       }
@@ -45,12 +43,13 @@ function AddCar() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.hub) {
-      alert('Please wait for hubs to load or create an operational terminal hub first!');
+      alert('Please wait for hubs to load or assign an operational terminal hub!');
       return;
     }
     try {
+      setSubmitting(true);
       await addCar(formData);
-      alert('New vehicle successfully added and deployed to hub station');
+      alert('New vehicle successfully added and deployed to hub station.');
       setFormData({
         name: '', 
         brand: '', 
@@ -61,85 +60,155 @@ function AddCar() {
         hub: hubs[0]?._id || ''
       });
     } catch (err) {
-      alert('Error saving vehicle configuration profile to system database.');
+      alert(err.response?.data?.message || 'Error saving vehicle profile to system database.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif', boxSizing: 'border-box' }}>
-      <div style={{ marginBottom: '2rem' }}>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', margin: 0 }}> Deploy New Fleet Asset</h2>
-        <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>Inject a vehicle profile directly into an operational station layout sector.</p>
+    <div className="max-w-2xl mx-auto py-6">
+      <div className="mb-8">
+        <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          Deploy New Fleet Asset
+        </h1>
+        <p className="text-neutral-400 text-sm mt-1">
+          Add an authorized vehicle profile directly into an active terminal hub bay.
+        </p>
       </div>
       
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        
-        {/* Clean Hub Selection Dropdown Menu */}
-        <div>
-          <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Operational Hub Assignment</label>
-          {loadingHubs ? (
-            <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '0.5rem' }}>Syncing pickup terminals from grid...</div>
-          ) : (
-            <select 
-              name="hub" 
-              value={formData.hub} 
+      <div className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/60">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          
+          {/* Hub Selection Dropdown */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">
+              Operational Hub Terminal Assignment
+            </label>
+            {loadingHubs ? (
+              <div className="text-xs text-neutral-500 py-3">Syncing pickup terminals...</div>
+            ) : (
+              <select 
+                name="hub" 
+                value={formData.hub} 
+                onChange={handleChange} 
+                required
+                className="w-full bg-neutral-900 border border-neutral-800 text-white rounded-xl px-4 py-3 text-sm outline-none focus:border-white transition-colors"
+              >
+                {hubs.length === 0 && <option value="">No active hubs discovered in database</option>}
+                {hubs.map((hub) => (
+                  <option key={hub._id} value={hub._id} className="bg-neutral-900 text-white">
+                    {hub.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">
+              Car Model Name
+            </label>
+            <input 
+              type="text" 
+              name="name" 
+              value={formData.name} 
               onChange={handleChange} 
-              required
-              style={{ width: '100%', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '6px', marginTop: '0.25rem', backgroundColor: '#fff', fontSize: '0.95rem' }}
-            >
-              {hubs.length === 0 && <option value="">No active hubs discovered inside database matrix</option>}
-              {hubs.map(hub => (
-                <option key={hub._id} value={hub._id}>{hub.name}</option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        <div>
-          <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Car Model </label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} required style={{ width: '100%', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box', marginTop: '0.25rem', fontSize: '0.95rem' }} placeholder="e.g., Thar, Model 3, Fortuner" />
-        </div>
-
-        <div>
-          <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}> Brand</label>
-          <input type="text" name="brand" value={formData.brand} onChange={handleChange} required style={{ width: '100%', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box', marginTop: '0.25rem', fontSize: '0.95rem' }} placeholder="e.g., Mahindra, Tesla, Toyota" />
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <div>
-            <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Classification Class</label>
-            <select name="type" value={formData.type} onChange={handleChange} style={{ width: '100%', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '6px', marginTop: '0.25rem', backgroundColor: '#fff', fontSize: '0.95rem' }}>
-              <option value="Sedan">Sedan</option>
-              <option value="SUV">SUV</option>
-              <option value="Hatchback">Hatchback</option>
-              <option value="Luxury">Luxury</option>
-            </select>
+              required 
+              placeholder="e.g., Thar 4x4, Model S, Fortuner"
+              className="w-full bg-neutral-900 border border-neutral-800 text-white rounded-xl px-4 py-3 text-sm outline-none focus:border-white transition-colors placeholder-neutral-500" 
+            />
           </div>
+
           <div>
-            <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Fuel Classification</label>
-            <select name="fuelType" value={formData.fuelType} onChange={handleChange} style={{ width: '100%', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '6px', marginTop: '0.25rem', backgroundColor: '#fff', fontSize: '0.95rem' }}>
-              <option value="Petrol">Petrol</option>
-              <option value="Diesel">Diesel</option>
-              <option value="Electric">Electric</option>
-              <option value="Hybrid">Hybrid</option>
-            </select>
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">
+              Vehicle Manufacturer / Brand
+            </label>
+            <input 
+              type="text" 
+              name="brand" 
+              value={formData.brand} 
+              onChange={handleChange} 
+              required 
+              placeholder="e.g., Mahindra, Tesla, Toyota"
+              className="w-full bg-neutral-900 border border-neutral-800 text-white rounded-xl px-4 py-3 text-sm outline-none focus:border-white transition-colors placeholder-neutral-500" 
+            />
           </div>
-        </div>
 
-        <div>
-          <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Daily Rental Cost (₹)</label>
-          <input type="number" name="rentPerDay" value={formData.rentPerDay} onChange={handleChange} required style={{ width: '100%', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box', marginTop: '0.25rem', fontSize: '0.95rem' }} placeholder="e.g., 2500" />
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">
+                Classification Class
+              </label>
+              <select 
+                name="type" 
+                value={formData.type} 
+                onChange={handleChange}
+                className="w-full bg-neutral-900 border border-neutral-800 text-white rounded-xl px-4 py-3 text-sm outline-none focus:border-white transition-colors"
+              >
+                <option value="Sedan">Sedan</option>
+                <option value="SUV">SUV</option>
+                <option value="Hatchback">Hatchback</option>
+                <option value="Luxury">Luxury</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">
+                Powertrain
+              </label>
+              <select 
+                name="fuelType" 
+                value={formData.fuelType} 
+                onChange={handleChange}
+                className="w-full bg-neutral-900 border border-neutral-800 text-white rounded-xl px-4 py-3 text-sm outline-none focus:border-white transition-colors"
+              >
+                <option value="Petrol">Petrol</option>
+                <option value="Diesel">Diesel</option>
+                <option value="Electric">Electric</option>
+                <option value="Hybrid">Hybrid</option>
+              </select>
+            </div>
+          </div>
 
-        <div>
-          <label style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Vehicle Image Address</label>
-          <input type="text" name="image" value={formData.image} onChange={handleChange} required style={{ width: '100%', padding: '0.65rem', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box', marginTop: '0.25rem', fontSize: '0.95rem' }} placeholder="https://images.unsplash.com/your-car-image.png" />
-        </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">
+              Daily Rental Rate (₹)
+            </label>
+            <input 
+              type="number" 
+              name="rentPerDay" 
+              value={formData.rentPerDay} 
+              onChange={handleChange} 
+              required 
+              placeholder="2500"
+              className="w-full bg-neutral-900 border border-neutral-800 text-white rounded-xl px-4 py-3 text-sm outline-none focus:border-white transition-colors placeholder-neutral-500" 
+            />
+          </div>
 
-        <button type="submit" style={{ width: '100%', padding: '0.85rem', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '700', fontSize: '1rem', cursor: 'pointer', marginTop: '1rem' }}>
-          + Add New Vehicle 
-        </button>
-      </form>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">
+              Vehicle Image URL (or emoji fallback)
+            </label>
+            <input 
+              type="text" 
+              name="image" 
+              value={formData.image} 
+              onChange={handleChange} 
+              required 
+              placeholder="https://images.unsplash.com/... or 🚙"
+              className="w-full bg-neutral-900 border border-neutral-800 text-white rounded-xl px-4 py-3 text-sm outline-none focus:border-white transition-colors placeholder-neutral-500" 
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={submitting}
+            className="w-full py-4 bg-white hover:bg-neutral-200 text-black font-extrabold text-sm rounded-xl cursor-pointer border-none transition-all shadow-xl shadow-white/5 mt-4 disabled:opacity-50"
+          >
+            {submitting ? 'Registering Asset...' : '+ Deploy Asset to Hub'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

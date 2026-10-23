@@ -1,61 +1,56 @@
+// frontend/src/pages/user/home.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
+import carImage from '../../assets/black-car.png';
 
-// Haversine formula to compute distance between coordinates in kilometers
-function getDistanceKM(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth's radius in km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-function Home() {
+export default function Home({ auth }) {
   const navigate = useNavigate();
+  const shouldReduceMotion = useReducedMotion();
+
+  // Search & Geocoding State
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Transition Animation State
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const dropdownRef = useRef(null);
 
-  const regionalHubs = [
-    { name: "Kattakada Market Hub, Trivandrum", lat: 8.5033, lng: 77.0852 },
-    { name: "Choondupalaka Hub, Kattakada", lat: 8.5085, lng: 77.0815 },
-    { name: "Guruvayur Railway Station Hub, Thrissur", lat: 10.5970, lng: 76.0460 },
-    { name: "Water Metro Hub, Marine Drive, Kochi", lat: 9.9786, lng: 76.2764 },
-    { name: "Calicut International Airport Hub", lat: 11.1368, lng: 75.9553 },
-    { name: "Trivandrum Central Railway Station Hub", lat: 8.4867, lng: 76.9522 }
-  ];
-
-  // Fetch location suggestions from OpenStreetMap Nominatim API
+  // Debounced OpenStreetMap Nominatim API Location Lookup
   useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      if (searchQuery.trim().length < 3) {
-        setSuggestions([]);
-        return;
-      }
+    if (searchQuery.trim().length < 3) {
+      setSuggestions([]);
+      return;
+    }
 
+    const timer = setTimeout(async () => {
       try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&addressdetails=1&limit=5&countrycodes=in`
+        setIsSearching(true);
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            searchQuery
+          )}&addressdetails=1&limit=5&countrycodes=in`
         );
-        const data = await response.json();
-        setSuggestions(data);
-      } catch (error) {
-        console.error("Error fetching location data from OpenStreetMap:", error);
+        const data = await res.json();
+        setSuggestions(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Failed to fetch location suggestions:', err);
+      } finally {
+        setIsSearching(false);
       }
-    }, 400); // 400ms debounce to limit API requests while typing
+    }, 350);
 
-    return () => clearTimeout(delayDebounceFn);
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Close the dropdown if clicking anywhere outside of it
+  // Click Outside Listener for Autocomplete Dropdown
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowDropdown(false);
       }
     };
@@ -63,249 +58,323 @@ function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelectLocation = (locationItem) => {
-    const lat = parseFloat(locationItem.lat);
-    const lon = parseFloat(locationItem.lon);
-    const displayName = locationItem.display_name;
-
-    setSearchQuery(displayName);
+  const handleSelectSuggestion = (item) => {
+    const loc = {
+      name: item.display_name,
+      lat: parseFloat(item.lat),
+      lng: parseFloat(item.lon),
+    };
+    setSelectedLocation(loc);
+    setSearchQuery(item.display_name.split(',')[0]);
     setShowDropdown(false);
-    processHubSelection(lat, lon, displayName);
-  };
-
-  const processHubSelection = (lat, lng, name) => {
-    // Filters down fixed regional hubs using your 40km perimeter zone
-    const nearbyHubs = regionalHubs.filter(hub => {
-      const distance = getDistanceKM(lat, lng, hub.lat, hub.lng);
-      return distance <= 40;
-    });
-
-    if (nearbyHubs.length > 0) {
-      const closestHub = nearbyHubs[0];
-      navigate(`/cars?lat=${closestHub.lat}&lng=${closestHub.lng}&label=${encodeURIComponent(closestHub.name)}`);
-    } else {
-      alert(`We located "${name.split(',')[0]}", but there are currently no available cars within 40 km of this region.`);
-    }
+    setErrorMessage('');
   };
 
   const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    if (suggestions.length > 0) {
-      handleSelectLocation(suggestions[0]);
-    } else if (searchQuery.trim().length > 0) {
-      alert("Please choose a matching location option from the dropdown menu.");
+    if (e) e.preventDefault();
+    if (isTransitioning) return;
+
+    let targetLocation = selectedLocation;
+
+    // If user typed without clicking dropdown, try the first suggestion or generate coordinates
+    if (!targetLocation) {
+      if (suggestions.length > 0) {
+        const first = suggestions[0];
+        targetLocation = {
+          name: first.display_name,
+          lat: parseFloat(first.lat),
+          lng: parseFloat(first.lon),
+        };
+        setSelectedLocation(targetLocation);
+      } else if (searchQuery.trim().length >= 2) {
+        // Fallback default coordinates for search term
+        targetLocation = {
+          name: searchQuery.trim(),
+          lat: 9.9312,
+          lng: 76.2673, // Kochi coordinates as fallback center
+        };
+        setSelectedLocation(targetLocation);
+      }
     }
+
+    // Step 1: Validate location
+    if (!targetLocation && (!searchQuery || searchQuery.trim().length === 0)) {
+      setErrorMessage('Please enter a location to discover nearby rental hubs.');
+      return;
+    }
+
+    setErrorMessage('');
+    setShowDropdown(false);
+    setIsTransitioning(true);
+
+    // If prefers-reduced-motion is enabled, skip long scale animation and navigate promptly
+    const transitionDuration = shouldReduceMotion ? 600 : 2000;
+
+    setTimeout(() => {
+      navigate('/hubs', {
+        state: {
+          location: targetLocation || { name: searchQuery.trim() },
+        },
+      });
+    }, transitionDuration);
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#000000', fontFamily: 'sans-serif' }}>
+    <div className="relative min-h-screen w-full bg-[#000000] text-white overflow-hidden flex flex-col justify-between selection:bg-white/20">
       
-      {/* HERO SECTION WITH CUSTOM VEHICLE BACKGROUND */}
-      <div 
-        style={{
-          position: 'relative',
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.7)), url('https://static-cdn.cars24.com/prod/auto-news24-cms/cars24-blog-images/2026/02/09/4533d794-10b5-4473-96e7-801eff61ca6c-top-11-most-expensive-cars-in-india--price-specification-and-features.webp')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          padding: '4rem 2rem',
-          textAlign: 'center',
-          color: '#ffffff',
-          boxSizing: 'border-box'
-        }}
-      >
-        
-        <div style={{ maxWidth: '850px', width: '100%', zIndex: 2 }}>
+      {/* ══════════════════════════════════════════════════════
+          BACKGROUND RADIAL GLOW & LIGHTING
+          ══════════════════════════════════════════════════════ */}
+      <motion.div
+        className="pointer-events-none absolute inset-0 z-0"
+        animate={
+          isTransitioning && !shouldReduceMotion
+            ? {
+                background:
+                  'radial-gradient(circle at 50% 65%, rgba(255, 255, 255, 0.45) 0%, rgba(120, 120, 120, 0.25) 35%, rgba(0, 0, 0, 0.95) 70%, #000000 100%)',
+              }
+            : {
+                background:
+                  'radial-gradient(circle at 50% 68%, rgba(180, 180, 180, 0.18) 0%, rgba(60, 60, 60, 0.08) 40%, rgba(0, 0, 0, 0.8) 75%, #000000 100%)',
+              }
+        }
+        transition={{ duration: 1.8, ease: 'easeIn' }}
+      />
 
-          <h1 style={{ 
-            fontSize: '3.8rem', 
-            fontWeight: '900', 
-            lineHeight: '1.15', 
-            marginBottom: '1.25rem',
-            letterSpacing: '-1.5px',
-            textShadow: '0 4px 20px rgba(0,0,0,0.8)'
-          }}>
-            Your Next Journey Starts Here
+      {/* ══════════════════════════════════════════════════════
+          HERO TOP NAVIGATION BAR (Animated on transition)
+          ══════════════════════════════════════════════════════ */}
+      <motion.header
+        className="relative z-30 w-full max-w-7xl mx-auto px-6 py-6 flex items-center justify-between"
+        animate={
+          isTransitioning
+            ? { opacity: 0, y: -40, filter: 'blur(4px)' }
+            : { opacity: 1, y: 0, filter: 'blur(0px)' }
+        }
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+      >
+        {/* Brand Logo */}
+        <Link to="/" className="text-xl font-extrabold text-white tracking-tight no-underline flex items-center gap-2">
+          <span className="text-2xl">🚗</span>
+          <span className="bg-gradient-to-r from-white via-neutral-100 to-neutral-400 bg-clip-text text-transparent">
+            CarGo
+          </span>
+        </Link>
+
+        {/* Center Nav Links (Hidden on small mobile) */}
+        <nav className="hidden md:flex items-center gap-8">
+          <Link to="/" className="text-sm font-semibold text-white no-underline">
+            Home
+          </Link>
+          <Link to="/hubs" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors no-underline">
+            Hubs
+          </Link>
+          <Link to="/cars" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors no-underline">
+            Fleet
+          </Link>
+          <Link to="/contact" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors no-underline">
+            Contact
+          </Link>
+          <Link to="/contact" className="text-sm font-medium text-neutral-400 hover:text-white transition-colors no-underline">
+            Community
+          </Link>
+        </nav>
+
+        {/* Right CTA */}
+        <div className="flex items-center gap-3">
+          {auth && auth.isLoggedIn ? (
+            <Link
+              to="/bookings"
+              className="text-xs font-semibold text-neutral-300 hover:text-white bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-full no-underline transition-all"
+            >
+              My Bookings
+            </Link>
+          ) : (
+            <>
+              <button
+                onClick={() => navigate('/login')}
+                className="text-xs font-semibold text-neutral-300 hover:text-white px-3 py-2 bg-transparent border-none cursor-pointer"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => navigate('/register')}
+                className="text-xs font-semibold text-black bg-white hover:bg-neutral-200 px-5 py-2 rounded-lg transition-all border-none cursor-pointer shadow-md shadow-white/10"
+              >
+                Sign Up
+              </button>
+            </>
+          )}
+        </div>
+      </motion.header>
+
+      {/* ══════════════════════════════════════════════════════
+          HERO HEADLINE & LOCATION SEARCH (Animated on transition)
+          ══════════════════════════════════════════════════════ */}
+      <motion.div
+        className="relative z-20 flex-1 flex flex-col items-center justify-start pt-6 sm:pt-10 px-6 text-center"
+        animate={
+          isTransitioning
+            ? { opacity: 0, y: -50, scale: 0.95, filter: 'blur(6px)' }
+            : { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }
+        }
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+      >
+        <div className="max-w-3xl w-full mx-auto">
+          {/* Main Title */}
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black text-white tracking-tight leading-[1.08] mb-4">
+            Rent Cars, <br className="hidden sm:inline" />
+            <span className="text-neutral-300">Build Trust</span>
           </h1>
-          
-          <p style={{ 
-            fontSize: '1.25rem', 
-            color: '#a3a3a3', 
-            lineHeight: '1.6',
-            textShadow: '0 2px 8px rgba(0,0,0,0.5)',
-            maxWidth: '650px',
-            margin: '0 auto 3.5rem auto'
-          }}>
-            Select your nearest rental hub
+
+          {/* Subtitle */}
+          <p className="text-base sm:text-lg text-neutral-400 max-w-xl mx-auto mb-8 font-normal leading-relaxed">
+            Premium fleet rentals across regional transit terminals. Real-time availability, zero friction.
           </p>
 
-          <div style={{
-            backgroundColor: '#121212', 
-            padding: '2rem',
-            borderRadius: '24px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
-            color: '#ffffff',
-            textAlign: 'left',
-            maxWidth: '700px',
-            margin: '0 auto',
-            border: '1px solid #262626',
-            position: 'relative'
-          }} ref={dropdownRef}>
-            
-            <form onSubmit={handleSearchSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                 Select Region
-              </label>
+          {/* Search Bar Container */}
+          <div ref={dropdownRef} className="relative max-w-xl mx-auto w-full">
+            <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row items-stretch gap-2 bg-[#121212]/90 backdrop-blur-xl p-2 rounded-2xl border border-neutral-800 shadow-2xl shadow-black/80">
               
-              <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
-                <div style={{ flex: 1, position: 'relative' }}>
-                  <input 
-                    type="text"
-                    placeholder="Search location"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setShowDropdown(true);
-                    }}
-                    onFocus={() => setShowDropdown(true)}
-                    style={{
-                      width: '100%',
-                      padding: '1.1rem 1.25rem',
-                      borderRadius: '12px',
-                      border: '2px solid #262626',
-                      backgroundColor: '#1a1a1a', 
-                      color: '#ffffff', 
-                      fontSize: '1rem',
-                      fontWeight: '500',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-
-                  {/* CUSTOM OPENSTREETMAP AUTO-SUGGEST DROPDOWN */}
-                  {showDropdown && suggestions.length > 0 && (
-                    <ul style={{
-                      position: 'absolute',
-                      top: '105%',
-                      left: 0,
-                      right: 0,
-                      backgroundColor: '#1a1a1a',
-                      border: '1px solid #262626',
-                      borderRadius: '12px',
-                      listStyle: 'none',
-                      padding: '0.5rem 0',
-                      margin: 0,
-                      maxHeight: '220px',
-                      overflowY: 'auto',
-                      zIndex: 999,
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
-                    }}>
-                      {suggestions.map((item, idx) => (
-                        <li 
-                          key={idx}
-                          onClick={() => handleSelectLocation(item)}
-                          style={{
-                            padding: '0.8rem 1.25rem',
-                            color: '#e5e5e5',
-                            cursor: 'pointer',
-                            fontSize: '0.95rem',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            transition: 'background-color 0.15s'
-                          }}
-                          onMouseEnter={(e) => e.target.style.backgroundColor = '#262626'}
-                          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                        >
-                          {item.display_name}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                <button 
-                  type="submit"
-                  style={{
-                    backgroundColor: '#ffffff', 
-                    color: '#000000', 
-                    border: 'none',
-                    padding: '0 2rem',
-                    borderRadius: '12px',
-                    fontWeight: '700',
-                    fontSize: '1rem',
-                    cursor: 'pointer',
-                    transition: 'opacity 0.2s'
+              {/* Input Field */}
+              <div className="relative flex-1 flex items-center">
+                <span className="pl-4 pr-2 text-neutral-500 text-lg">📍</span>
+                <input
+                  type="text"
+                  placeholder="Enter city, airport, or station..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setSelectedLocation(null);
+                    setShowDropdown(true);
+                    if (errorMessage) setErrorMessage('');
                   }}
-                  onMouseEnter={(e) => e.target.style.opacity = '0.9'}
-                  onMouseLeave={(e) => e.target.style.opacity = '1'}
-                >
-                  Search
-                </button>
+                  onFocus={() => {
+                    if (suggestions.length > 0) setShowDropdown(true);
+                  }}
+                  disabled={isTransitioning}
+                  className="w-full bg-transparent text-white placeholder-neutral-500 text-sm sm:text-base py-3 pr-4 focus:outline-none"
+                />
+                {isSearching && (
+                  <span className="pr-4 text-xs text-neutral-400 animate-pulse">Scanning...</span>
+                )}
               </div>
+
+              {/* Submit CTA Button */}
+              <button
+                type="submit"
+                disabled={isTransitioning}
+                className="bg-white hover:bg-neutral-200 text-black font-bold text-sm sm:text-base px-7 py-3.5 rounded-xl transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0 shadow-lg shadow-white/10"
+              >
+                {isTransitioning ? (
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  'Search nearby hubs'
+                )}
+              </button>
             </form>
 
+            {/* Validation Message */}
+            {errorMessage && (
+              <p className="text-red-400 text-xs sm:text-sm mt-2 font-medium text-left px-2">
+                ⚠️ {errorMessage}
+              </p>
+            )}
+
+            {/* Location Autocomplete Dropdown */}
+            {showDropdown && suggestions.length > 0 && !isTransitioning && (
+              <ul className="absolute top-full left-0 right-0 mt-2 bg-[#141414] border border-neutral-800 rounded-xl overflow-hidden shadow-2xl z-50 text-left list-none p-0 m-0 max-h-60 overflow-y-auto">
+                {suggestions.map((item, idx) => (
+                  <li
+                    key={idx}
+                    onClick={() => handleSelectSuggestion(item)}
+                    className="px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-800 hover:text-white cursor-pointer border-b border-neutral-800/50 last:border-none transition-colors flex items-center gap-3"
+                  >
+                    <span className="text-neutral-500 text-xs">📌</span>
+                    <span className="truncate">{item.display_name}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
+      </motion.div>
+
+      {/* ══════════════════════════════════════════════════════
+          HERO CAR IMAGE & ZOOM TRANSITION
+          ══════════════════════════════════════════════════════ */}
+      <div className="relative z-10 w-full flex justify-center items-end pointer-events-none select-none">
+        <motion.div
+          className="relative w-full max-w-4xl px-4 sm:px-8 flex justify-center"
+          initial={{ scale: 1, opacity: 1 }}
+          animate={
+            isTransitioning && !shouldReduceMotion
+              ? {
+                  scale: 16,
+                  opacity: 0.9,
+                  transition: {
+                    duration: 2.0,
+                    ease: [0.7, 0, 0.84, 0], // dramatic ease-in curve
+                  },
+                }
+              : { scale: 1, opacity: 1 }
+          }
+          style={{
+            transformOrigin: '50% 35%', // Focused near the windshield & front grille
+          }}
+        >
+          <img
+            src={carImage}
+            alt="CarGo Luxury Vehicle"
+            className="w-[90%] sm:w-full h-auto object-contain drop-shadow-[0_0_35px_rgba(255,255,255,0.15)]"
+          />
+        </motion.div>
       </div>
 
-      {/* FOOTER CONTAINER: COPYRIGHT & CONTACT NAVIGATION */}
-      <footer style={{ 
-        backgroundColor: '#121212', 
-        color: '#a3a3a3', 
-        padding: '1.5rem 2rem', 
-        borderTop: '1px solid #262626',
-        fontSize: '0.9rem'
-      }}>
-        <div style={{ 
-          maxWidth: '1200px', 
-          margin: '0 auto', 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem'
-        }}>
-          <div>
-            &copy; {new Date().getFullYear()} CarRental Co. All rights reserved.
-          </div>
-          
-          <div style={{ display: 'flex', gap: '2rem' }}>
-            <span 
-              onClick={() => navigate('/contact')} 
-              style={{ cursor: 'pointer', transition: 'color 0.2s' }}
-              onMouseEnter={(e) => e.target.style.color = '#ffffff'}
-              onMouseLeave={(e) => e.target.style.color = '#a3a3a3'}
-            >
-              Contact Support
-            </span>
-            <span 
-              onClick={() => navigate('/terms')} 
-              style={{ cursor: 'pointer', transition: 'color 0.2s' }}
-              onMouseEnter={(e) => e.target.style.color = '#ffffff'}
-              onMouseLeave={(e) => e.target.style.color = '#a3a3a3'}
-            >
+      {/* ══════════════════════════════════════════════════════
+          BLACKOUT FADE OVERLAY (Fades to black at 1.5s)
+          ══════════════════════════════════════════════════════ */}
+      <motion.div
+        className="pointer-events-none fixed inset-0 z-40 bg-black"
+        initial={{ opacity: 0 }}
+        animate={
+          isTransitioning
+            ? {
+                opacity: 1,
+                transition: {
+                  delay: shouldReduceMotion ? 0.1 : 1.4,
+                  duration: shouldReduceMotion ? 0.4 : 0.6,
+                  ease: 'easeInOut',
+                },
+              }
+            : { opacity: 0 }
+        }
+      />
+
+      {/* ══════════════════════════════════════════════════════
+          FOOTER COPYRIGHT & SECONDARY LINKS
+          ══════════════════════════════════════════════════════ */}
+      <motion.footer
+        className="relative z-20 w-full border-t border-neutral-900 bg-black/60 backdrop-blur-md py-4 px-6 text-xs text-neutral-500"
+        animate={isTransitioning ? { opacity: 0 } : { opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span>&copy; {new Date().getFullYear()} CarGo Mobility Inc. All rights reserved.</span>
+          <div className="flex items-center gap-6">
+            <Link to="/contact" className="text-neutral-400 hover:text-white no-underline transition-colors">
+              Support
+            </Link>
+            <Link to="/terms" className="text-neutral-400 hover:text-white no-underline transition-colors">
               Terms of Service
-            </span>
-            <a 
-              href="mailto:support@carrental.com" 
-              style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.2s' }}
-              onMouseEnter={(e) => e.target.style.color = '#ffffff'}
-              onMouseLeave={(e) => e.target.style.color = '#a3a3a3'}
-            >
-              support@carrental.com
-            </a>
+            </Link>
           </div>
         </div>
-      </footer>
+      </motion.footer>
 
     </div>
   );
 }
-
-export default Home;

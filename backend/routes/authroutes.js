@@ -1,17 +1,19 @@
 // backend/routes/authroutes.js
+import '../config/env.js';
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto'; // 1. Built-in Node tool for generating high-security random keys
 import User from '../models/user.js';
 import { isPasswordStrong, passwordRequirementsMessage, isEmailDeliverable } from '../utils/validators.js';
-import { sendVerificationEmail } from '../utils/mailer.js';
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'cargo_super_secret_key_123';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is not set. Server cannot start without it.');
+}
 
 // ==========================================
-// 1. REGISTER ROUTE (Generates Secure Token)
+// 1. REGISTER ROUTE (Direct Account Creation)
 // ==========================================
 router.post('/register', async (req, res) => {
   try {
@@ -26,7 +28,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: passwordRequirementsMessage() });
     }
 
-    // --- VALIDATION: email is well-formed AND the domain can actually receive mail ---
+    // --- VALIDATION: email format & domain check ---
     const emailCheck = await isEmailDeliverable(email);
     if (!emailCheck.valid) {
       return res.status(400).json({ message: emailCheck.reason });
@@ -36,40 +38,22 @@ router.post('/register', async (req, res) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ message: 'Email already registered' });
 
-    // Hash the password
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Generate a unique random hex string and set a 24-hour expiration date
-    const uniqueToken = crypto.randomBytes(32).toString('hex');
-    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // Current time + 24 hours
-
-    // Create and save new user with verification metrics
+    // Create and save user directly as active
     const newUser = new User({
       name,
       email,
       password: hashedPassword,
-      isVerified: false, // Account locked out of the gate
-      verificationToken: uniqueToken,
-      verificationTokenExpires: tokenExpiry
+      isVerified: true
     });
 
     await newUser.save();
 
-    // Send the real verification email (instead of just logging it)
-    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify?token=${uniqueToken}`;
-
-    try {
-      await sendVerificationEmail(email, verificationUrl);
-    } catch (mailErr) {
-      
-      return res.status(500).json({
-        message: `Email Error: ${mailErr.message || mailErr}`
-      });
-    }
-
     res.status(201).json({
-      message: 'Registration successful! A verification link has been sent to your email.'
+      message: 'Registration successful! You can now log in.'
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -77,55 +61,19 @@ router.post('/register', async (req, res) => {
 });
 
 // ==========================================
-// 2. EMAIL VERIFICATION ENDPOINT
-// ==========================================
-router.get('/verify-email', async (req, res) => {
-  try {
-    const { token } = req.query;
-
-    if (!token) {
-      return res.status(400).json({ message: 'Verification token is missing.' });
-    }
-
-    // Find the user with this token, ensuring the expiration timestamp is in the future ($gt = greater than now)
-    const user = await User.findOne({
-      verificationToken: token,
-      verificationTokenExpires: { $gt: new Date() }
-    });
-
-    if (!user) {
-      return res.status(400).json({ message: 'The verification link is invalid or has expired.' });
-    }
-
-    // Unlock the account and clear out the temporary token data
-    user.isVerified = true;
-    user.verificationToken = null;
-    user.verificationTokenExpires = null;
-    await user.save();
-
-    res.status(200).json({ message: 'Email verified successfully! You can now log in.' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// ==========================================
-// 3. LOGIN ROUTE (Blocks Unverified Users)
+// 2. LOGIN ROUTE (Direct Authentication)
 // ==========================================
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required.' });
+    }
+
     // Find user by email
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: 'Invalid email or password' });
-
-    // GUARD RAIL: Check if the user has verified their email address
-    if (!user.isVerified) {
-      return res.status(403).json({
-        message: 'Please open your email and click the verification link to activate your account.'
-      });
-    }
 
     // Verify password
     const isMatch = await bcrypt.compare(password, user.password);
@@ -138,7 +86,7 @@ router.post('/login', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // Send back token and user metadata (excluding password)
+    // Send back token and user metadata
     res.json({
       token,
       user: {

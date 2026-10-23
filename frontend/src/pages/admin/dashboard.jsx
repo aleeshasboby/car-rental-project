@@ -4,10 +4,10 @@ import React from 'react';
 function Dashboard() {
   // Mock metrics acting as system aggregation counts
   const metrics = [
-    { title: 'Total Revenue Generated', value: '₹48,500', icon: '📈', color: '#e0f2fe', textColor: '#0369a1' },
-    { title: 'Active Fleet Vehicles', value: '24 Cars', icon: '🚗', color: '#dcfce7', textColor: '#15803d' },
-    { title: 'Pending Car Bookings', value: '7 Rides', icon: '⏳', color: '#fef9c3', textColor: '#a16207' },
-    { title: 'Registered Operators', value: '142 Users', icon: '👥', color: '#f3e8ff', textColor: '#6b21a8' },
+    { title: 'Total Revenue Generated', value: '₹48,500', color: '#e0f2fe', textColor: '#0369a1' },
+    { title: 'Active Fleet Vehicles', value: '24 Cars', color: '#dcfce7', textColor: '#15803d' },
+    { title: 'Pending Car Bookings', value: '7 Rides', color: '#fef9c3', textColor: '#a16207' },
+    { title: 'Registered Operators', value: '142 Users', color: '#f3e8ff', textColor: '#6b21a8' },
   ];
 
   // Mock array simulating real-time platform system updates

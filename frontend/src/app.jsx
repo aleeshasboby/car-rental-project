@@ -8,6 +8,7 @@ import AdminLayout from './layouts/adminlayout.jsx';
 
 // Customer View Interfaces
 import Home from './pages/user/home.jsx';
+import Hubs from './pages/user/hubs.jsx';
 import CarBrowsing from './pages/user/carbrowsing.jsx';
 import CarDetails from './pages/user/cardetails.jsx';
 import MyBookings from './pages/user/mybookings.jsx';
@@ -79,6 +80,7 @@ function App() {
       {/* UNIFIED USER TRACK */}
       <Route path="/" element={<UserLayout auth={auth} onLogout={handleLogout} />}>
         <Route index element={<Home auth={auth} />} />
+        <Route path="hubs" element={<Hubs auth={auth} />} />
         <Route path="cars" element={<CarBrowsing />} />
         <Route path="car/:id" element={<CarDetails />} /> 
         

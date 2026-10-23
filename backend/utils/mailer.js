@@ -1,13 +1,20 @@
+// backend/utils/mailer.js
 import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
 
-// Hardcoded fallback configuration to ensure it connects directly to Gmail
+// Ensure env variables are loaded even if mailer initializes before server setup
+dotenv.config();
+
+console.log('DEBUG SMTP_USER:', process.env.SMTP_USER);
+console.log('DEBUG SMTP_PASS:', process.env.SMTP_PASS ? 'SET' : 'MISSING');
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: Number(process.env.SMTP_PORT) || 587,
   secure: false, // false for port 587
   auth: {
-    user: process.env.SMTP_USER || 'aleeshasboby@gmail.com',
-    pass: process.env.SMTP_PASS || 'ljve pvzh kyhr tbvu', // 👈 Put your 16-character Google app password here!
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s+/g, '') : '', // Removes spaces if present in App Password
   },
   tls: {
     servername: 'smtp.gmail.com',
@@ -15,8 +22,7 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function sendVerificationEmail(toEmail, verificationUrl) {
-  // Hardcode your email address here as a fallback
-  const fromAddress = 'aleeshasboby@gmail.com';
+  const fromAddress = process.env.SMTP_USER || 'aleeshasboby@gmail.com';
 
   await transporter.sendMail({
     from: `"CarGo" <${fromAddress}>`,

@@ -2,23 +2,34 @@
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ['user', 'admin'], default: 'user' },
-  
-  // 👇 Add these 3 custom email verification fields
-  isVerified: { 
-    type: Boolean, 
-    default: false 
+  name: {
+    type: String,
+    required: true
   },
-  verificationToken: { 
-    type: String, 
-    default: null 
+  email: {
+    type: String,
+    required: true,
+    unique: true
   },
-  verificationTokenExpires: { 
-    type: Date, 
-    default: null 
+  password: {
+    type: String,
+    required: true
+  },
+  role: {
+    type: String,
+    default: 'user'
+  },
+  isVerified: {
+    type: Boolean,
+    default: true // Existing/admin documents without this field will default to true
+  },
+  verificationToken: {
+    type: String,
+    default: null
+  },
+  verificationTokenExpires: {
+    type: Date,
+    default: null
   }
 }, { timestamps: true });
 

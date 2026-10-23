@@ -1,30 +1,32 @@
 // frontend/src/pages/user/carbrowsing.jsx
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { getAllCars } from '../../services/carservice.js';
 
 function CarBrowsing() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
-  // Grab search filters if they came from a homepage selection
   const userLat = parseFloat(searchParams.get('lat'));
   const userLng = parseFloat(searchParams.get('lng'));
   const searchLabel = searchParams.get('label');
+  const hubId = searchParams.get('hubId');
 
   const [allCars, setAllCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedType, setSelectedType] = useState('ALL');
 
   useEffect(() => {
     const fetchLiveInventory = async () => {
       try {
         setLoading(true);
         const data = await getAllCars();
-        setAllCars(data);
+        setAllCars(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to load cars:", err);
-        setError("Could not establish server uplink.");
+        setError("Could not establish server uplink to fleet repository.");
       } finally {
         setLoading(false);
       }
@@ -32,150 +34,260 @@ function CarBrowsing() {
     fetchLiveInventory();
   }, []);
 
-  const isFilteredSearch = !isNaN(userLat) && !isNaN(userLng);
+  const isFilteredSearch = Boolean(searchLabel || hubId || (!isNaN(userLat) && !isNaN(userLng)));
   
-  // Filter vehicles belonging to the hub chosen by the user
-  const displayedCars = isFilteredSearch
-    ? allCars.filter(car => {
+  // Filter by hub
+  const hubFilteredCars = isFilteredSearch
+    ? allCars.filter((car) => {
+        const carHubId = car.hub?._id || car.hub;
+        if (hubId && carHubId === hubId) return true;
+        
         const carHubName = (car.hub?.name || car.hubName || '').toLowerCase();
         const targetedHub = (searchLabel || '').toLowerCase();
-        // Match the car to the specific selected hub terminal
         return carHubName.includes(targetedHub) || targetedHub.includes(carHubName);
       })
     : allCars;
 
-  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#64748b' }}><h3>Scanning Fleet... 📡</h3></div>;
-  if (error) return <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#ef4444' }}><h3>⚠️ {error}</h3></div>;
+  // Filter by vehicle type tab
+  const displayedCars = selectedType === 'ALL'
+    ? hubFilteredCars
+    : hubFilteredCars.filter((c) => (c.type || '').toUpperCase() === selectedType);
+
+  const vehicleTypes = ['ALL', ...Array.from(new Set(hubFilteredCars.map(c => (c.type || 'Standard').toUpperCase())))];
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', padding: '3rem 2rem', fontFamily: 'sans-serif' }}>
-      
-      {/* Header Info Banner */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto 3rem auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <span style={{ fontSize: '0.85rem', fontWeight: '700', color: isFilteredSearch ? '#16a34a' : '#2563eb', textTransform: 'uppercase' }}>
-            {isFilteredSearch ? '🟢 Location Filter Active' : '🌐 Complete Fleet Inventory Overview'}
-          </span>
-          <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#0f172a', margin: '0.25rem 0 0.5rem 0' }}>
-            {isFilteredSearch ? `Available Fleet Near: ${searchLabel?.split(',')[0]}` : 'All Rental Vehicles'}
-          </h1>
-          <p style={{ color: '#64748b', margin: 0 }}>
-            {isFilteredSearch 
-              ? `Showing cars available at your chosen transit hub terminal. Found ${displayedCars.length} matches.` 
-              : `Displaying all ${displayedCars.length} vehicles currently registered in our systems.`}
-          </p>
-        </div>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="min-h-screen bg-[#0a0a0a] text-white py-12 px-6"
+    >
+      <div className="max-w-7xl mx-auto">
         
-        {isFilteredSearch && (
-          <button 
-            onClick={() => navigate('/')}
-            style={{ backgroundColor: '#fff', border: '1px solid #cbd5e1', padding: '0.6rem 1.2rem', borderRadius: '6px', fontWeight: '600', color: '#475569', cursor: 'pointer' }}
-          >
-             Change Location
-          </button>
-        )}
-      </div>
-
-      {/* VEHICLE CATALOG GRID */}
-      {displayedCars.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '5rem 0', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🗺️</div>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a' }}>No Vehicles Found</h3>
-          <p style={{ color: '#64748b' }}>There are no operational vehicles available at this transit terminal right now.</p>
-          <button onClick={() => navigate('/')} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '0.5rem 1.5rem', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}>Return to Homepage</button>
-        </div>
-      ) : (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '2rem' }}>
-          {displayedCars.map((car) => {
-            const isBookedOut = car.isAvailable === false;
-            const isAnActualImageFile = car.image && (car.image.startsWith('http') || car.image.startsWith('/') || car.image.startsWith('data:'));
-
-            return (
-              <div 
-                key={car._id} 
-                style={{ 
-                  backgroundColor: '#fff', 
-                  borderRadius: '16px', 
-                  border: '1px solid #e2e8f0', 
-                  overflow: 'hidden', 
-                  boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)',
-                  position: 'relative'
-                }}
+        {/* Header Info Banner */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 border-b border-neutral-900 pb-8">
+          <div>
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-400 bg-neutral-900 px-3 py-1.5 rounded-full mb-3 border border-neutral-800">
+              <span className={`w-2 h-2 rounded-full ${isFilteredSearch ? 'bg-emerald-400' : 'bg-blue-400'}`} />
+              {isFilteredSearch ? 'Terminal Station Active' : 'Complete Fleet Catalog'}
+            </div>
+            
+            <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
+              {isFilteredSearch ? `Fleet at ${searchLabel?.split(',')[0]}` : 'Explore All Vehicles'}
+            </h1>
+            
+            <p className="text-neutral-400 mt-2 text-sm sm:text-base max-w-2xl">
+              {isFilteredSearch 
+                ? `Showing vehicles staged at this pickup hub ready for immediate reservation. Found ${displayedCars.length} available.` 
+                : `Displaying all ${displayedCars.length} vehicles currently active in our fleet registry.`}
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {isFilteredSearch && (
+              <Link 
+                to="/hubs"
+                className="bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all no-underline"
               >
-                
-                {/* Image Container Frame */}
-                <div style={{ height: '180px', backgroundColor: '#f8fafc', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem', opacity: isBookedOut ? 0.5 : 1 }}>
-                  {isAnActualImageFile ? (
-                    <img src={car.image} alt={car.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                  ) : (
-                    <div style={{ fontSize: '5rem' }}>
-                      {car.image || (car.type?.toLowerCase().includes('suv') ? '🚙' : car.type?.toLowerCase().includes('sedan') ? '🚘' : '🚗')}
-                    </div>
-                  )}
-
-                  {isBookedOut && (
-                    <span style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: '#ef4444', color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', padding: '0.3rem 0.6rem', borderRadius: '6px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                      🔒 Fully Booked
-                    </span>
-                  )}
-                </div>
-                
-                <div style={{ padding: '1.5rem', opacity: isBookedOut ? 0.75 : 1 }}>
-                  <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ fontSize: '1.3rem', fontWeight: '700', color: '#0f172a', margin: '0 0 0.25rem 0' }}>{car.name}</h3>
-                      <span style={{ fontSize: '0.75rem', fontWeight: '700', backgroundColor: '#eff6ff', color: '#2563eb', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>{car.type}</span>
-                    </div>
-                    <div style={{ textAlign: 'right', marginLeft: '0.5rem' }}>
-                      <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0f172a' }}>₹{car.rentPerDay || car.pricePerDay}</div>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>/ day</span>
-                    </div>
-                  </div>
-
-                  {/* Hub Terminal Label Box */}
-                  <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#0f172a' }}>
-                         📍 {car.hub?.name || car.hubName || 'Unassigned Station'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9', fontSize: '0.85rem', color: '#475569' }}>
-                    <span>💺 {car.seats || 5} Seats</span>
-                    <span>⛽ {car.fuelType}</span>
-                  </div>
-
-                  {isBookedOut ? (
-                    <button 
-                      disabled
-                      style={{ width: '100%', marginTop: '1.25rem', padding: '0.85rem', borderRadius: '8px', backgroundColor: '#cbd5e1', color: '#64748b', border: 'none', fontWeight: '700', cursor: 'not-allowed' }}
-                    >
-                      Currently Unavailable
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={() => {
-                        const activeToken = sessionStorage.getItem('token');
-                        if (!activeToken) {
-                          alert("Please sign in to reserve this vehicle");
-                          navigate('/login', { state: { redirectTo: `/car/${car._id}` } });
-                        } else {
-                          navigate(`/car/${car._id}`);
-                        }
-                      }}
-                      style={{ width: '100%', marginTop: '1.25rem', padding: '0.85rem', borderRadius: '8px', backgroundColor: '#0f172a', color: '#fff', border: 'none', fontWeight: '700', cursor: 'pointer' }}
-                    >
-                      Book This Vehicle
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                ← All Hubs
+              </Link>
+            )}
+            <button 
+              onClick={() => navigate('/')}
+              className="bg-white hover:bg-neutral-200 text-black px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer border-none shadow-md"
+            >
+              Change Location
+            </button>
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* Filter Tabs */}
+        {vehicleTypes.length > 2 && (
+          <div className="flex flex-wrap items-center gap-2 mb-8">
+            <span className="text-xs font-semibold text-neutral-500 uppercase mr-2">Category:</span>
+            {vehicleTypes.map((t) => (
+              <button
+                key={t}
+                onClick={() => setSelectedType(t)}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
+                  selectedType === t
+                    ? 'bg-white text-black border-white'
+                    : 'bg-neutral-900/80 text-neutral-400 hover:text-white border-neutral-800'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-24 text-neutral-500 flex flex-col items-center gap-3">
+            <span className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            <p className="text-sm font-medium">Scanning vehicle fleet sensors...</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <div className="bg-red-950/40 border border-red-800/60 text-red-300 p-4 rounded-xl text-sm mb-8 text-center">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {/* Empty Catalog State */}
+        {!loading && displayedCars.length === 0 && (
+          <div className="text-center py-24 bg-[#121212] rounded-2xl border border-neutral-800 max-w-xl mx-auto px-6">
+            <div className="text-4xl mb-3">🚗</div>
+            <h3 className="text-xl font-bold text-white mb-2">No Vehicles Found</h3>
+            <p className="text-neutral-400 text-sm mb-6">
+              There are no operational vehicles matching this category at this station right now.
+            </p>
+            <div className="flex justify-center gap-3">
+              <Link
+                to="/hubs"
+                className="bg-neutral-800 hover:bg-neutral-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold no-underline transition-all"
+              >
+                Check Other Hubs
+              </Link>
+              <button
+                onClick={() => setSelectedType('ALL')}
+                className="bg-white hover:bg-neutral-200 text-black px-5 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer border-none"
+              >
+                View All Types
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Vehicle Catalog Grid */}
+        {!loading && displayedCars.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {displayedCars.map((car) => {
+              const isBookedOut = car.isAvailable === false;
+              const isAnActualImageFile =
+                car.image &&
+                (car.image.startsWith('http') ||
+                  car.image.startsWith('/') ||
+                  car.image.startsWith('data:'));
+
+              return (
+                <div 
+                  key={car._id} 
+                  className="bg-[#141414] hover:bg-[#181818] border border-neutral-800/80 hover:border-neutral-700 rounded-2xl overflow-hidden transition-all duration-300 flex flex-col justify-between group shadow-xl shadow-black/40 hover:shadow-2xl hover:shadow-white/5"
+                >
+                  {/* Top Image Showcase */}
+                  <div className="relative h-48 bg-gradient-to-b from-neutral-900 to-[#141414] p-4 flex items-center justify-center overflow-hidden border-b border-neutral-800/50">
+                    {isAnActualImageFile ? (
+                      <img 
+                        src={car.image} 
+                        alt={car.name} 
+                        className={`max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-105 ${
+                          isBookedOut ? 'opacity-40 grayscale' : 'opacity-100'
+                        }`} 
+                      />
+                    ) : (
+                      <div className="text-6xl select-none group-hover:scale-110 transition-transform">
+                        {car.image || (car.type?.toLowerCase().includes('suv') ? '🚙' : '🚘')}
+                      </div>
+                    )}
+
+                    {/* Availability Tag */}
+                    <div className="absolute top-3 right-3">
+                      {isBookedOut ? (
+                        <span className="bg-red-950/80 border border-red-800 text-red-300 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full">
+                          Booked Out
+                        </span>
+                      ) : (
+                        <span className="bg-emerald-950/80 border border-emerald-800 text-emerald-300 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          Ready for dispatch
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Body Content */}
+                  <div className="p-6 flex-1 flex flex-col justify-between">
+                    <div>
+                      {/* Brand & Type */}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
+                          {car.brand || 'Premium'}
+                        </span>
+                        <span className="text-xs font-semibold bg-neutral-900 text-neutral-300 border border-neutral-800 px-2.5 py-0.5 rounded-md">
+                          {car.type || 'Standard'}
+                        </span>
+                      </div>
+
+                      {/* Title */}
+                      <h3 className="text-xl font-bold text-white mb-3 group-hover:text-neutral-100 transition-colors">
+                        {car.name}
+                      </h3>
+
+                      {/* Terminal Location */}
+                      <div className="bg-neutral-900/70 border border-neutral-800/70 rounded-xl p-3 mb-4 flex items-center gap-2 text-xs text-neutral-300">
+                        <span className="text-sm">📍</span>
+                        <span className="truncate font-medium">
+                          {car.hub?.name || car.hubName || 'Standard Pickup Bay'}
+                        </span>
+                      </div>
+
+                      {/* Specifications */}
+                      <div className="grid grid-cols-2 gap-2 text-xs text-neutral-400 mb-6 pb-4 border-b border-neutral-800/60">
+                        <div className="flex items-center gap-1.5">
+                          <span>🪑</span>
+                          <span>{car.seats || 5} Seats</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span>⛽</span>
+                          <span>{car.fuelType || 'Petrol / Hybrid'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Price & Action */}
+                    <div className="flex items-center justify-between gap-4 pt-2">
+                      <div>
+                        <div className="text-2xl font-black text-white">
+                          ₹{car.rentPerDay || car.pricePerDay || 2500}
+                        </div>
+                        <span className="text-[11px] text-neutral-500 font-medium">per calendar day</span>
+                      </div>
+
+                      {isBookedOut ? (
+                        <button 
+                          disabled
+                          className="bg-neutral-800 text-neutral-500 text-xs font-bold px-4 py-3 rounded-xl cursor-not-allowed border border-neutral-800"
+                        >
+                          Unavailable
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => {
+                            const activeToken = sessionStorage.getItem('token');
+                            if (!activeToken) {
+                              navigate('/login', { state: { redirectTo: `/car/${car._id}` } });
+                            } else {
+                              navigate(`/car/${car._id}`);
+                            }
+                          }}
+                          className="bg-white hover:bg-neutral-200 text-black text-xs font-bold px-5 py-3 rounded-xl transition-all cursor-pointer border-none shadow-md group-hover:shadow-white/10"
+                        >
+                          Book Now
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+      </div>
+    </motion.div>
   );
 }
 

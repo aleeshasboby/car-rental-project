@@ -8,7 +8,6 @@ function ManageUsers() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch all registered users when page loads
   useEffect(() => {
     fetchUsersList();
   }, []);
@@ -17,7 +16,7 @@ function ManageUsers() {
     try {
       setLoading(true);
       const data = await getAllUsers();
-      setUsers(data);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || 'Failed to sync users database catalog.');
@@ -26,17 +25,17 @@ function ManageUsers() {
     }
   };
 
-  // Handle promoting or demoting an account rank
   const handleRoleToggle = async (userId, currentRole) => {
     const targetRole = currentRole === 'admin' ? 'user' : 'admin';
-    const confirmChange = window.confirm(`Are you sure you want to change this user's privilege access level to "${targetRole.toUpperCase()}"?`);
+    const confirmChange = window.confirm(
+      `Are you sure you want to change this user's privilege access level to "${targetRole.toUpperCase()}"?`
+    );
     
     if (!confirmChange) return;
 
     try {
       await updateUserRole(userId, targetRole);
       alert('User privileges updated successfully');
-      // Refresh list to instantly show visual update
       fetchUsersList();
     } catch (err) {
       console.error(err);
@@ -44,97 +43,106 @@ function ManageUsers() {
     }
   };
 
-  // Filter users array based on search search input (Name or Email matches)
-  const filteredUsers = users.filter(user => 
+  const filteredUsers = users.filter((user) => 
     user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+    <div className="max-w-6xl mx-auto py-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>🛡️ Administrative Command Center</h2>
-          <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>View registered user accounts and modify system access clearance privileges.</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            User Accounts & Clearances
+          </h1>
+          <p className="text-neutral-400 text-sm mt-1">
+            View registered customer profiles and toggle administrative security permissions.
+          </p>
+        </div>
+
+        {/* Search Bar */}
+        <div className="w-full sm:w-72">
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-neutral-900 border border-neutral-800 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:border-white transition-colors placeholder-neutral-500"
+          />
         </div>
       </div>
 
-      {/* Search Input Bar Field */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <input 
-          type="text" 
-          placeholder="🔍 Search users by name or email address..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid #cbd5e1', borderRadius: '8px', boxSizing: 'border-box', fontSize: '0.95rem' }}
-        />
-      </div>
-
       {error && (
-        <div style={{ backgroundColor: '#fef2f2', color: '#ef4444', padding: '1rem', borderRadius: '8px', fontWeight: '600', marginBottom: '1.5rem' }}>
+        <div className="bg-red-950/40 border border-red-800 text-red-300 p-4 rounded-xl text-sm mb-6 text-center">
           ⚠️ {error}
         </div>
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b', fontWeight: '600' }}>
-          Querying secure user matrices...
+        <div className="py-24 text-center text-neutral-500 flex flex-col items-center gap-3">
+          <span className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+          <p className="text-sm">Accessing user credentials database...</p>
         </div>
       ) : (
-        <div style={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <div className="w-full overflow-x-auto bg-[#141414] rounded-2xl border border-neutral-800 shadow-2xl shadow-black/60">
+          <table className="w-full border-collapse text-left min-w-[700px]">
             <thead>
-              <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '1rem', color: '#475569', fontWeight: '700', fontSize: '0.85rem' }}>USER IDENTIFIER</th>
-                <th style={{ padding: '1rem', color: '#475569', fontWeight: '700', fontSize: '0.85rem' }}>EMAIL ADDRESS</th>
-                <th style={{ padding: '1rem', color: '#475569', fontWeight: '700', fontSize: '0.85rem' }}>CLEARANCE LEVEL</th>
-                <th style={{ padding: '1rem', color: '#475569', fontWeight: '700', fontSize: '0.85rem', textAlign: 'right' }}>SECURITY ACTIONS</th>
+              <tr className="border-b border-neutral-800 bg-neutral-900/50 text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+                <th className="p-4 pl-6">Identity</th>
+                <th className="p-4">Registered Email</th>
+                <th className="p-4">Access Role</th>
+                <th className="p-4 pr-6 text-right">Clearance Action</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-neutral-800/60 text-sm">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="4" style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>
-                    No matching user accounts discovered inside this database sector.
+                  <td colSpan="4" className="p-12 text-center text-neutral-500">
+                    No users matching criteria.
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '1rem', fontWeight: '600', color: '#0f172a' }}>{user.name}</td>
-                    <td style={{ padding: '1rem', color: '#475569' }}>{user.email}</td>
-                    <td style={{ padding: '1rem' }}>
-                      <span style={{ 
-                        padding: '0.25rem 0.6rem', 
-                        borderRadius: '9999px', 
-                        fontSize: '0.75rem', 
-                        fontWeight: '700',
-                        backgroundColor: user.role === 'admin' ? '#fef3c7' : '#e0f2fe',
-                        color: user.role === 'admin' ? '#d97706' : '#0369a1'
-                      }}>
-                        {user.role?.toUpperCase()}
-                      </span>
-                    </td>
-                    <td style={{ padding: '1rem', textAlign: 'right' }}>
-                      <button
-                        onClick={() => handleRoleToggle(user._id, user.role)}
-                        style={{
-                          padding: '0.4rem 0.8rem',
-                          border: '1px solid',
-                          borderRadius: '6px',
-                          fontWeight: '600',
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                          backgroundColor: user.role === 'admin' ? '#fff' : '#4f46e5',
-                          borderColor: user.role === 'admin' ? '#dc2626' : '#4f46e5',
-                          color: user.role === 'admin' ? '#dc2626' : '#fff'
-                        }}
-                      >
-                        {user.role === 'admin' ? 'Demote Access' : 'Promote to Admin'}
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                filteredUsers.map((user) => {
+                  const isAdmin = user.role === 'admin';
+
+                  return (
+                    <tr key={user._id} className="hover:bg-neutral-900/40 transition-colors">
+                      <td className="p-4 pl-6 font-bold text-white flex items-center gap-3">
+                        <span className="w-8 h-8 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-xs">
+                          {user.name ? user.name[0].toUpperCase() : 'U'}
+                        </span>
+                        <span>{user.name}</span>
+                      </td>
+
+                      <td className="p-4 text-xs font-medium text-neutral-400">
+                        {user.email}
+                      </td>
+
+                      <td className="p-4">
+                        <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${
+                          isAdmin 
+                            ? 'bg-red-950/60 border-red-800 text-red-400' 
+                            : 'bg-neutral-900 border-neutral-800 text-neutral-300'
+                        }`}>
+                          {user.role || 'user'}
+                        </span>
+                      </td>
+
+                      <td className="p-4 pr-6 text-right">
+                        <button
+                          onClick={() => handleRoleToggle(user._id, user.role)}
+                          className={`text-xs font-bold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors ${
+                            isAdmin
+                              ? 'bg-neutral-900 hover:bg-neutral-800 border-neutral-800 text-neutral-400 hover:text-white'
+                              : 'bg-white hover:bg-neutral-200 border-white text-black'
+                          }`}
+                        >
+                          {isAdmin ? 'Demote to User' : 'Promote to Admin'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

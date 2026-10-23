@@ -6,7 +6,6 @@ function ManageCars() {
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Hook directly into your real backend database cluster
   useEffect(() => {
     const fetchCars = async () => {
       try {
@@ -24,57 +23,100 @@ function ManageCars() {
   }, []);
 
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Syncing secure fleet inventory ledger...</div>;
+    return (
+      <div className="py-24 text-center text-neutral-500 flex flex-col items-center gap-3">
+        <span className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        <p className="text-sm">Syncing secure fleet inventory ledger...</p>
+      </div>
+    );
   }
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif', boxSizing: 'border-box' }}>
-      <div style={{ marginBottom: '2rem' }}>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>📋 Active Fleet Inventory</h2>
-        <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>Full analytical ledger overview of all vehicles currently deployed to active hubs.</p>
+    <div className="max-w-7xl mx-auto py-6">
+      <div className="mb-8">
+        <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          Active Fleet Inventory
+        </h1>
+        <p className="text-neutral-400 text-sm mt-1">
+          Full analytical ledger overview of all vehicles currently deployed to active hubs.
+        </p>
       </div>
 
-      <div style={{ width: '100%', overflowX: 'auto', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+      <div className="w-full overflow-x-auto bg-[#141414] rounded-2xl border border-neutral-800 shadow-2xl shadow-black/60">
+        <table className="w-full border-collapse text-left min-w-[700px]">
           <thead>
-            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Vehicle Image</th>
-              <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Vehicle Details</th>
-              <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Hub Location </th>
-              <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Classification</th>
-              <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Fuel Type</th>
-              <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>Daily Rate</th>
+            <tr className="border-b border-neutral-800 bg-neutral-900/50 text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+              <th className="p-4 pl-6">Vehicle Asset</th>
+              <th className="p-4">Hub Terminal</th>
+              <th className="p-4">Classification</th>
+              <th className="p-4">Powertrain</th>
+              <th className="p-4">Daily Rate</th>
+              <th className="p-4 pr-6">Status</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-neutral-800/60 text-sm">
             {cars.length === 0 ? (
               <tr>
-                <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>No vehicles currently registered in the database.</td>
+                <td colSpan="6" className="p-12 text-center text-neutral-500">
+                  No vehicles currently registered in the database.
+                </td>
               </tr>
             ) : (
-              cars.map((car) => (
-                <tr key={car._id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.15s' }}>
-                  <td style={{ padding: '1rem' }}>
-                    <img 
-                      src={car.image || 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=150'} 
-                      alt={car.name} 
-                      style={{ width: '100px', height: '60px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e2e8f0' }} 
-                    />
-                  </td>
-                  <td style={{ padding: '1rem' }}>
-                    <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '1rem' }}>{car.name}</div>
-                    <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.15rem' }}>{car.brand}</div>
-                  </td>
-                  <td style={{ padding: '1rem', color: '#0284c7', fontSize: '0.95rem', fontWeight: '600' }}>
-                    {car.hub?.name || 'Unassigned Hub Terminal'}
-                  </td>
-                  <td style={{ padding: '1rem', color: '#334155', fontSize: '0.95rem' }}>{car.type}</td>
-                  <td style={{ padding: '1rem', color: '#334155', fontSize: '0.95rem' }}>{car.fuelType}</td>
-                  <td style={{ padding: '1rem', fontWeight: '700', color: '#0f172a', fontSize: '1rem' }}>
-                    ₹{Number(car.rentPerDay).toLocaleString('en-IN')}/day
-                  </td>
-                </tr>
-              ))
+              cars.map((car) => {
+                const isAvailable = car.isAvailable !== false;
+                const isAnActualImageFile =
+                  car.image &&
+                  (car.image.startsWith('http') ||
+                    car.image.startsWith('/') ||
+                    car.image.startsWith('data:'));
+
+                return (
+                  <tr key={car._id} className="hover:bg-neutral-900/40 transition-colors">
+                    <td className="p-4 pl-6 flex items-center gap-4">
+                      <div className="w-14 h-11 bg-neutral-900 border border-neutral-800 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+                        {isAnActualImageFile ? (
+                          <img src={car.image} alt={car.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xl">{car.image || '🚗'}</span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-bold text-white">{car.name}</div>
+                        <div className="text-xs text-neutral-400">{car.brand}</div>
+                      </div>
+                    </td>
+
+                    <td className="p-4 text-xs font-semibold text-neutral-300">
+                      📍 {car.hub?.name || car.hubName || 'Unassigned Station'}
+                    </td>
+
+                    <td className="p-4">
+                      <span className="text-xs font-semibold bg-neutral-900 border border-neutral-800 text-neutral-300 px-2.5 py-1 rounded-md">
+                        {car.type || 'Standard'}
+                      </span>
+                    </td>
+
+                    <td className="p-4 text-xs text-neutral-400">
+                      ⛽ {car.fuelType || 'Petrol'}
+                    </td>
+
+                    <td className="p-4 font-black text-white text-base">
+                      ₹{car.rentPerDay || car.pricePerDay}
+                    </td>
+
+                    <td className="p-4 pr-6">
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+                        isAvailable 
+                          ? 'bg-emerald-950/60 border-emerald-800 text-emerald-400' 
+                          : 'bg-red-950/60 border-red-800 text-red-400'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isAvailable ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                        {isAvailable ? 'Available' : 'Rented Out'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
